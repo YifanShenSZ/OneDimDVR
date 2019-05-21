@@ -1,5 +1,6 @@
-# DVR
+# OneDimDVR
 Numerically solve the time dependent schrodinger equation by discrete variable representation method
+This is a special version for 1 dimensional problem
 
 Supported job types:
 1. NewTrajectory
