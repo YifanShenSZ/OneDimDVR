@@ -1,5 +1,5 @@
 !Library interface, data storage, basic routine
-!Modify this module for different psy0 and potential:
+!Modify this module for different initial wave function (psy0) and potential:
 !    REMEMBER to modify InitializeDVRParameter accordingly,
 !    different models have different assumptions on initial condition
 module Basic
