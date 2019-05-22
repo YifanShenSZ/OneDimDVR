@@ -33,11 +33,11 @@ program main
             if(ScatteringProblem) then
                 write(*,*)'Scattering problem, turn on absorbing potential'
                 call SolveAbsorb()
+                write(*,*)'Actual evolution time =',ActualTime/fsInAU/1000d0,'ps'
             else
                 call Solve()
             end if
             !output
-                write(*,*)'Actual evolution time =',ActualTime/fsInAU/1000d0,'ps'
                 allocate(t(lt))
                 forall(i=1:lt)
                     t(i)=(i-1)*OutputInterval
@@ -198,13 +198,13 @@ program main
         case('pRepresentation')
             call ReadTrajectory()
             !prepare
-                allocate(p0scan(NGrid))
+                allocate(p0scan(2*NGrid))
                     dp0=hbar*pi/(right-left)
                     forall(i=1:NGrid)
-                        p0scan(i)=i*dp0
+                        p0scan(NGrid+i)=i*dp0
+                        p0scan(NGrid-i+1)=-i*dp0
                     end forall
-                    !p0scan=p0scan-dp0*NGrid/2d0
-                allocate(phi(NGrid,NState,lt))
+                allocate(phi(2*NGrid,NState,lt))
             do j=1,lt
                 do i=1,NState
                     call Transform2p(psy(:,i,j),phi(:,i,j),NGrid)
@@ -212,14 +212,14 @@ program main
             end do
             !output
                 open(unit=99,file='k.DVR',status='replace')
-                    do i=1,NGrid
+                    do i=1,2*NGrid
                         write(99,*)p0scan(i)
                     end do
                 close(99)
                 open(unit=99,file='Phi.DVR',status='replace')
                     do k=1,lt
                         do j=1,NState
-                            do i=1,NGrid
+                            do i=1,2*NGrid
                                 write(99,*)real(phi(i,j,k))
                                 write(99,*)imag(phi(i,j,k))
                             end do

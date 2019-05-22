@@ -62,7 +62,7 @@ subroutine InitializeDVRParameter()
         dx=maxdx
         dt=maxdt
         kmax=0d0
-        d=0.607223718988194d0**2!User have to specify the initial variance of x
+        d=0.25d0!User have to specify the initial variance of x
     end if
 end subroutine InitializeDVRParameter
 

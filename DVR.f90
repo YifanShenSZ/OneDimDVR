@@ -81,14 +81,14 @@ subroutine HamiltonianDVRAbsorb(x,dx,NState,lx)
                 tran(i,j)=pisqd3
             else
                 k=i-j
-                tran(i,j)=2d0/k**2
+                tran(i,j)=2d0/(k*k)
                 if(mod(k,2)) then
                     tran(i,j)=-tran(i,j)
                 end if
             end if
         end do
     end do
-    tran=hbar**2/2d0/mass/dx**2*tran
+    tran=hbar*hbar/2d0/mass/dx/dx*tran
     j=1
     do i=1,NState
         k=j+lx-1
@@ -110,14 +110,12 @@ subroutine Evolve(d,u,N)
     complex*16,dimension(N),intent(inout)::d
     complex*16,dimension(N),intent(in)::u
     integer,intent(in)::N
-    !d=matmul(Hamiltonian,u)
     call zsymv('L',N,(1d0,0d0),Hamiltonian,N,u,1,(0d0,0d0),d,1)
 end subroutine Evolve
 subroutine EvolveAbsorb(d,u,N)
     complex*16,dimension(N),intent(inout)::d
     complex*16,dimension(N),intent(in)::u
     integer,intent(in)::N
-    !d=matmul(HamiltonianAbsorb,u)
     call zsymv('L',N,(1d0,0d0),HamiltonianAbsorb,N,u,1,(0d0,0d0),d,1)
 end subroutine EvolveAbsorb
 
@@ -128,13 +126,13 @@ subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) *
     real*8,allocatable,dimension(:)::eigval
     complex*16,allocatable,dimension(:)::psya,psyd,phase
     call InitializeDVRParameter()
-    !discretize space
+    !Discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
             call dScientificNotation(dx,i)
             dx=floor(dx)*10d0**i
         end if
-        write(*,*)'Automatically set dx =',dx,'a.u.'
+        write(*,*)'dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         NAbsorbGrid=0
         lx=NGrid
@@ -143,6 +141,8 @@ subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) *
             x(i)=left+(i-1)*dx
         end forall
         totallength=NState*lx
+    !Discretize time
+        lt=floor(totaltime/OutputInterval)+1
     !Diagonalize Hamiltonian
         allocate(Hamiltonian(totallength,totallength))
         call HamiltonianDVR(x,dx,NState,lx)
@@ -163,10 +163,9 @@ subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) *
         !psya=matmul(transpose(Hamiltonian),psyd)
         call zgemv('C',totallength,totallength,(1d0,0d0),Hamiltonian,totallength,psyd,1,(0d0,0d0),psya,1)
     !Propagate by exp(-iE/hbar) * H eigen vector
-        lt=floor(totaltime/OutputInterval)+1
         allocate(phase(totallength))
         forall(i=1:totallength)
-            phase(i)=exp(-ci*eigval(i))*OutputInterval
+            phase(i)=exp(-ci/hbar*eigval(i)*OutputInterval)
         end forall
         deallocate(eigval)
         do i=1,lt
@@ -189,13 +188,13 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
     complex*16,allocatable,dimension(:)::eigval,psyevolveold,psyevolvenew
     complex*16,allocatable,dimension(:,:)::eigvec
     call InitializeDVRParameter()
-    !discretize space
+    !Discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
             call dScientificNotation(dx,i)
             dx=floor(dx)*10d0**i
         end if
-        write(*,*)'Automatically set dx =',dx,'a.u.'
+        write(*,*)'dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         al=pim2/kmin
         NAbsorbGrid=floor(al/dx)-1
@@ -213,21 +212,22 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
         allocate(HamiltonianAbsorb(totallength,totallength))
         call HamiltonianDVRAbsorb(x,dx,NState,lx)
         HamiltonianAbsorb=-ci/hbar*HamiltonianAbsorb
-    !discretize time
+    !Discretize time
         if(totallength>maxtotallength) then
             write(*,*)'Auto dt determination is disabled due to cost'
             write(*,*)'The dimension of Hamiltonian is',totallength
         elseif(AutoStep) then
             allocate(eigval(totallength))
             allocate(eigvec(totallength,totallength))
-            call My_zgeev('N',HamiltonianAbsorb,eigval,eigvec,totallength)
+            eigvec=HamiltonianAbsorb
+            call My_zgeev('N',eigvec,eigval,eigvec,totallength)
             dt=min(1d0/maxval(abs(eigval)),pim2*mass/hbar/kmax/kmax,maxdt)
             deallocate(eigval)
             deallocate(eigvec)
         end if
         OutputFreq=Ceiling(OutputInterval/dt)
         dt=OutputInterval/OutputFreq
-        write(*,*)'Automatically set dt =',dt,'a.u.'
+        write(*,*)'dt =',dt,'a.u.'
     !prepare
         lt=floor(totaltime/OutputInterval)+1
         allocate(psy(lx,NState,lt))
@@ -246,19 +246,18 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
         write(*,*)'Evolving...'
         do i=1,(lt-1)*OutputFreq
             call zRK4(psyevolveold,psyevolvenew,EvolveAbsorb,dt,totallength)
-            !write trajectory
+            !Write trajectory
                 if(mod(i,OutputFreq)==0) then
                     forall(j=1:NState)
                         psy(:,j,1+i/OutputFreq)=psyevolvenew((j-1)*lx+1:j*lx)
                     end forall
                 end if
-WRITE(*,*)I,dot_product(psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid),psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid))*dx
-            !check whether too much population has gone out of the true dynamics area
-                if(abs(dot_product(psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid),psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid))*dx-1d0)>minpopdev) then
+            !Check whether the population has been absorbed too much
+                if(abs(dot_product(psyevolvenew,psyevolvenew)*dx-1d0)>minpopdev) then
                     lt=1+i/OutputFreq
                     exit
                 end if
-            !get ready for next loop
+            !Get ready for next loop
                 psyevolveold=psyevolvenew
         end do
         ActualTime=(lt-1)*OutputInterval
@@ -284,7 +283,7 @@ subroutine scan_solve(Transmission,Reflection)
             call dScientificNotation(dx,i)
             dx=floor(dx)*10d0**i
         end if
-        write(*,*)'Automatically set dx =',dx,'a.u.'
+        write(*,*)'dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         al=pim2/kmin
         NAbsorbGrid=floor(al/dx)-1
@@ -323,7 +322,7 @@ subroutine scan_solve(Transmission,Reflection)
             call dScientificNotation(dt,i)
             dt=floor(dt)*10d0**i
         end if
-        write(*,*)'Automatically set dt =',dt,'a.u.'
+        write(*,*)'dt =',dt,'a.u.'
         lt=floor(totaltime/dt)+1
     !prepare
         allocate(psyevolve(totallength))
@@ -402,14 +401,14 @@ end subroutine SMDMatrix
 
 !phi(p)=F[psy(x)]
 subroutine Transform2p(psy,phi,NGrid)
-    complex*16,dimension(NGrid),intent(in)::psy
-    complex*16,dimension(NGrid),intent(inout)::phi
     integer,intent(in)::NGrid
+    complex*16,dimension(NGrid),intent(in)::psy
+    complex*16,dimension(2*NGrid),intent(inout)::phi
     integer::k,i
     real*8,dimension(NGrid)::ones
     complex*16,dimension(NGrid)::temp
     ones=1d0
-    do k=1,NGrid
+    do k=1,2*NGrid
         forall(i=1:NGrid)
             temp(i)=exp(-ci/hbar*p0scan(k)*x(i))*psy(i)
         end forall

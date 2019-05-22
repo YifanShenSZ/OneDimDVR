@@ -123,7 +123,7 @@ def Animate_Density(left,right,x,t,psy,NState,speed=1.0,title='Density',xlabel='
         return line
     #animate each a.u. time as 0.01s
     ani=anm.FuncAnimation(fig,animate,t.shape[0],interval=40.0/speed,blit=True)
-    ani.save('Density.gif')
+    ani.save(FileName+'.gif')
     plt.show()
 
 ''' Do the job '''
@@ -135,8 +135,8 @@ NGrid,dx,actualtime,lt,lp0,NState=Get_ParametersUsed('ParametersUsed.DVR')
 if(jobtype=='NewTrajectory'):
     x=Get_Grid('x.DVR')
     t=Get_Grid('t.DVR')
-    psy=Get_psy('Psy.DVR',NGrid,NState,lt)
-    Animate_Density(left,right,x,t,psy,NState,title='Coordinate space density')
+    psy=Get_psy('Psy.DVR',x.shape[0],NState,lt)
+    Animate_Density(left,right,x,t,psy,NState,title='Coordinate space density',FileName='xDensity')
 elif(jobtype=='TR-p0'):
     k,tran,ref=Get_TR('TR.DVR',NState)
     with open('TR.txt','w') as f:
@@ -166,9 +166,9 @@ elif(jobtype=='SMD'):
     nSMD=int(SMDOrder*(SMDOrder+3)/2)+1
     SMD=Get_SMD('SMD.DVR',NState,lt,nSMD)
     with open('SMD.txt','w') as f:
-        print('t',end='\t',file=f)
+        print('t/a.u.',end='\t',file=f)
         for i in range(NState):
-            print('x'+str(i),'p'+str(i),'sigmax'+str(i),'rho'+str(i),'sigmap'+str(i),'pop'+str(i),sep='\t',end='\t',file=f)
+            print('q'+str(i)+'/a.u.','p'+str(i)+'/a.u.','sigmaq'+str(i)+'/a.u.','rho'+str(i),'sigmap'+str(i)+'/a.u.','pop'+str(i),sep='\t',end='\t',file=f)
         print(file=f)
         for i in range(lt):
             print(t[i],end='\t',file=f)
@@ -179,8 +179,8 @@ elif(jobtype=='SMD'):
 elif(jobtype=='pRepresentation'):
     k=Get_Grid('k.DVR')
     t=Get_Grid('t.DVR')
-    psy=Get_psy('Phi.DVR',NGrid,NState,lt)
-    Animate_Density(k[0],k[NGrid-1],k,t,psy,NState,title='Momentum space density',xlabel='p [a.u.]')
+    psy=Get_psy('Phi.DVR',k.shape[0],NState,lt)
+    Animate_Density(k[0],k[k.shape[0]-1],k,t,psy,NState,title='Momentum space density',xlabel='p [a.u.]',FileName='pDensity')
 elif(jobtype=='WignerRepresentation'):
     x=Get_Grid('x.DVR')
     k=Get_Grid('k.DVR')
