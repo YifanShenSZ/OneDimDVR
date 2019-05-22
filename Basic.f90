@@ -24,7 +24,6 @@ module Basic
     real*8::p0left,p0right,dp0
 
 !Global variable
-    logical::kminabs0
     integer::NGrid,NAbsorbGrid,lx,lt,lp0
     real*8::d,dx,dt,kmin,kmax,kmins,ActualTime
     real*8,allocatable,dimension(:)::x,t,p0scan
@@ -54,7 +53,7 @@ subroutine InitializeDVRParameter()
             kmin=p0-3d0*p0/20d0
             kmax=p0+3d0*p0/20d0
             d=hbar**2*100d0/p0**2!Automatically use sigma_p=p0/20d0, equivalent to d=100d0/p0**2
-        kminabs0=kmin<0.and.kmax>0
+        if(kmin<0.and.kmax>0) stop 'Program abort: wavepacket contains 0 momentum component, please check your input'
         temp=min(abs(kmin),abs(kmax))
         kmax=max(abs(kmin),abs(kmax))
         kmin=temp/3d0
@@ -64,7 +63,6 @@ subroutine InitializeDVRParameter()
         dt=maxdt
         kmax=0d0
         d=0.607223718988194d0**2!User have to specify the initial variance of x
-        kminabs0=.false.
     end if
 end subroutine InitializeDVRParameter
 
@@ -121,6 +119,15 @@ real*8 function potential(x,i,j)!Some scattering models take mass as argument
             !    end if
             !end if
     !Bounded model
+        !4th order double well
+            !real*8::x2
+            !x2=x*x
+            !potential=x2*(2.4d-5*x2-3d-4)
+        !6th order double well
+            !real*8::x2,x4
+            !x2=x*x
+            !x4=x2*x2
+            !potential=3d-2*x2*(x4+2d0*x2-1d0)
 end function potential
 
 end module Basic

@@ -1,6 +1,6 @@
 !Numerically solve the time dependent schrodinger equation, method:
 !DVR: Colbert Miller 1992, Absorb: Manolopoulos 2004
-!IO unit: specified in IO files
+!IO unit: input time in ps or fs (specified in input file), others in atomic unit
 !Computation unit: atomic unit
 program main
     use Basic
@@ -30,6 +30,7 @@ program main
 !----------- Run job ------------
     select case(jobtype)
         case('NewTrajectory')
+            if(.not.AutoStep) write(*,*)'Auto dx dt determination is disabled, adopt user specified upper limit'
             if(ScatteringProblem) then
                 write(*,*)'Scattering problem, turn on absorbing potential'
                 call SolveAbsorb()
@@ -37,7 +38,6 @@ program main
                 call Solve()
             end if
             !output
-                call ShowTime()
                 write(*,*)'Actual evolution time =',ActualTime/fsInAU/1000d0,'ps'
                 allocate(t(lt))
                 forall(i=1:lt)
@@ -68,6 +68,7 @@ program main
                 deallocate(t)
                 deallocate(psy)
         case('TR-p0')
+            if(.not.AutoStep) write(*,*)'Auto dx dt determination is disabled, adopt user specified upper limit'
             !prepare
                 lp0=floor((p0right-p0left)/dp0)+1
                 allocate(p0scan(lp0))
@@ -78,11 +79,10 @@ program main
                 allocate(Reflection(NState,lp0))
             do i=1,lp0
                 p0=p0scan(i)
-                call showtime()
-                write(*,*)'p0=',p0
+                call ShowTime()
+                write(*,*)'p0 =',p0
                 call scan_solve(Transmission(:,i),Reflection(:,i))
-                write(*,*)'ActualTime=',ActualTime
-                deallocate(x)
+                write(*,*)'Actual evolution time =',ActualTime
             end do
             !output
                 open(unit=99,file='TR.DVR',status='replace')
@@ -99,6 +99,7 @@ program main
                 deallocate(Transmission)
                 deallocate(Reflection)
         case('SMD')
+            call ReadTrajectory()
             !prepare
                 nSMD=SMDOrder*(SMDOrder+3)/2
                 allocate(MatrixForm(NGrid,NGrid,nSMD))
@@ -196,6 +197,7 @@ program main
                 end do
                 deallocate(SMD)
         case('pRepresentation')
+            call ReadTrajectory()
             !prepare
                 allocate(p0scan(NGrid))
                     dp0=hbar*pi/(right-left)
@@ -231,6 +233,7 @@ program main
                deallocate(p0scan)
                deallocate(phi)
         case('WignerDistribution')
+            call ReadTrajectory()
             !prepare
                 allocate(p0scan(NGrid))
                     open(unit=99,file='k.DVR')
@@ -269,14 +272,15 @@ program main
 !------------- End --------------
 
 !---------- Clean up ------------
-        open(unit=99,file='ParametersUsed.DVR',status='replace')
-            write(99,*)NGrid
-            write(99,*)dx
-            write(99,*)ActualTime
-            write(99,*)lt
-            write(99,*)lp0
-            write(99,*)NState
-        close(99)
+    call ShowTime()
+    open(unit=99,file='ParametersUsed.DVR',status='replace')
+        write(99,*)NGrid
+        write(99,*)dx
+        write(99,*)ActualTime
+        write(99,*)lt
+        write(99,*)lp0
+        write(99,*)NState
+    close(99)
     write(*,*)'Mission success'
 !------------- End --------------
 
@@ -335,11 +339,9 @@ end subroutine ReadInput
 
 subroutine Initialize()
     if(JobType=='NewTrajectory'.or.JobType=='TR-p0') then!Need to propagate wavefunction
-        if(.not.AutoStep) write(*,*)'Auto step is disabled'
-        call InitializeDVRParameter()
-        if(kminabs0) stop 'parameter error: min(|k|)=0'
+        
     else!Read the old wavefunction and do some analyzation
-        call ReadTrajectory()
+        
     end if
 end subroutine Initialize
 

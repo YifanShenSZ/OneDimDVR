@@ -4,7 +4,7 @@ module DVR
 
 !Parameter
     logical::AutoStep=.true.!Whether determine dx and dt automatically
-    integer::maxtotallength=2147483647!To prevent too slow generation of auto dt
+    integer::maxtotallength=2147483647!To prevent too slow determination of auto dt
     real*8::minpopdev=1d-6,minpop=1d-6!Stop evolution when population no longer equals to 1
 
 !DVR module only variable
@@ -29,18 +29,52 @@ function AbsorbedPotential(x,i,j)
 end function AbsorbedPotential
 
 !x is the vector of grid points
-!HamiltonianDVR store as a whole NState*size(x) order matrix
+!Hamiltonian store as a whole NState*size(x) order matrix
 !can be considered as consisting of NState*NState blocks, ij block is NState i x NState j 
-function HamiltonianDVR(x,dx,NState,lx)
+subroutine HamiltonianDVR(x,dx,NState,lx)
     real*8,dimension(lx),intent(in)::x
     real*8,intent(in)::dx
     integer,intent(in)::NState,lx
-    integer::i,j,k,ii,jj,kk,kkk,totallength
+    integer::i,j,k,ii,jj,kk,kkk
     real*8,dimension(lx,lx)::tran
-    complex*16,allocatable,dimension(:,:)::HamiltonianDVR
-    totallength=NState*lx
-    allocate(HamiltonianDVR(totallength,totallength))
-    HamiltonianDVR=(0d0,0d0)
+    Hamiltonian=(0d0,0d0)
+    do i=1,lx
+        do j=1,lx
+            if(i==j) then
+                tran(i,j)=pisqd3
+            else
+                k=i-j
+                tran(i,j)=2d0/(k*k)
+                if(mod(k,2)) then
+                    tran(i,j)=-tran(i,j)
+                end if
+            end if
+        end do
+    end do
+    tran=hbar*hbar/2d0/mass/dx/dx*tran
+    j=1
+    do i=1,NState
+        k=j+lx-1
+        Hamiltonian(j:k,j:k)=tran
+        do ii=1,NState
+            kk=(i-1)*lx
+            kkk=(ii-1)*lx
+            do jj=1,lx
+                kk=kk+1
+                kkk=kkk+1
+                Hamiltonian(kk,kkk)=Hamiltonian(kk,kkk)+potential(x(jj),i,ii)
+            end do
+        end do
+        j=k+1
+    end do
+end subroutine HamiltonianDVR
+subroutine HamiltonianDVRAbsorb(x,dx,NState,lx)
+    real*8,dimension(lx),intent(in)::x
+    real*8,intent(in)::dx
+    integer,intent(in)::NState,lx
+    integer::i,j,k,ii,jj,kk,kkk
+    real*8,dimension(lx,lx)::tran
+    HamiltonianAbsorb=(0d0,0d0)
     do i=1,lx
         do j=1,lx
             if(i==j) then
@@ -58,79 +92,42 @@ function HamiltonianDVR(x,dx,NState,lx)
     j=1
     do i=1,NState
         k=j+lx-1
-        HamiltonianDVR(j:k,j:k)=tran
+        HamiltonianAbsorb(j:k,j:k)=tran
         do ii=1,NState
             kk=(i-1)*lx
             kkk=(ii-1)*lx
             do jj=1,lx
                 kk=kk+1
                 kkk=kkk+1
-                HamiltonianDVR(kk,kkk)=HamiltonianDVR(kk,kkk)+potential(x(jj),i,ii)
+                HamiltonianAbsorb(kk,kkk)=HamiltonianAbsorb(kk,kkk)+AbsorbedPotential(x(jj),i,ii)
             end do
         end do
         j=k+1
     end do
-end function HamiltonianDVR
-function HamiltonianDVRAbsorb(x,dx,NState,lx)
-    real*8,dimension(lx),intent(in)::x
-    real*8,intent(in)::dx
-    integer,intent(in)::NState,lx
-    integer::i,j,k,ii,jj,kk,kkk,totallength
-    real*8,dimension(lx,lx)::tran
-    complex*16,allocatable,dimension(:,:)::HamiltonianDVRAbsorb
-    totallength=NState*lx
-    allocate(HamiltonianDVRAbsorb(totallength,totallength))
-    HamiltonianDVRAbsorb=(0d0,0d0)
-    do i=1,lx
-        do j=1,lx
-            if(i==j) then
-                tran(i,j)=pisqd3
-            else
-                k=i-j
-                tran(i,j)=2d0/k**2
-                if(mod(k,2)) then
-                    tran(i,j)=-tran(i,j)
-                end if
-            end if
-        end do
-    end do
-    tran=hbar**2/2d0/mass/dx**2*tran
-    j=1
-    do i=1,NState
-        k=j+lx-1
-        HamiltonianDVRAbsorb(j:k,j:k)=tran
-        do ii=1,NState
-            kk=(i-1)*lx
-            kkk=(ii-1)*lx
-            do jj=1,lx
-                kk=kk+1
-                kkk=kkk+1
-                HamiltonianDVRAbsorb(kk,kkk)=HamiltonianDVRAbsorb(kk,kkk)+AbsorbedPotential(x(jj),i,ii)
-            end do
-        end do
-        j=k+1
-    end do
-end function HamiltonianDVRAbsorb
+end subroutine HamiltonianDVRAbsorb
 
 subroutine Evolve(d,u,N)
     complex*16,dimension(N),intent(inout)::d
     complex*16,dimension(N),intent(in)::u
     integer,intent(in)::N
-    d=matmul(Hamiltonian,u)
+    !d=matmul(Hamiltonian,u)
+    call zsymv('L',N,(1d0,0d0),Hamiltonian,N,u,1,(0d0,0d0),d,1)
 end subroutine Evolve
 subroutine EvolveAbsorb(d,u,N)
     complex*16,dimension(N),intent(inout)::d
     complex*16,dimension(N),intent(in)::u
     integer,intent(in)::N
-    d=matmul(HamiltonianAbsorb,u)
+    !d=matmul(HamiltonianAbsorb,u)
+    call zsymv('L',N,(1d0,0d0),HamiltonianAbsorb,N,u,1,(0d0,0d0),d,1)
 end subroutine EvolveAbsorb
 
 !Numerically solve the evolution of psy0, and output the trajectory
-subroutine Solve()!Diagonalize H, can be easily propagated by exp(-iE/hbar) * H eigen vector
+subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) * H eigen vector
     integer::i,j,index,totallength,OutputFreq
     real*8::al
     real*8,allocatable,dimension(:)::eigval
     complex*16,allocatable,dimension(:)::psya,psyd,phase
+    call InitializeDVRParameter()
     !discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
@@ -148,7 +145,7 @@ subroutine Solve()!Diagonalize H, can be easily propagated by exp(-iE/hbar) * H 
         totallength=NState*lx
     !Diagonalize Hamiltonian
         allocate(Hamiltonian(totallength,totallength))
-        Hamiltonian=HamiltonianDVR(x,dx,NState,lx)
+        call HamiltonianDVR(x,dx,NState,lx)
         allocate(eigval(totallength))
         call My_zheev('V',Hamiltonian,eigval,totallength)
     !Initial condition
@@ -163,7 +160,8 @@ subroutine Solve()!Diagonalize H, can be easily propagated by exp(-iE/hbar) * H 
                 index=index+1
             end do
         end do
-        psya=matmul(transpose(Hamiltonian),psyd)
+        !psya=matmul(transpose(Hamiltonian),psyd)
+        call zgemv('C',totallength,totallength,(1d0,0d0),Hamiltonian,totallength,psyd,1,(0d0,0d0),psya,1)
     !Propagate by exp(-iE/hbar) * H eigen vector
         lt=floor(totaltime/OutputInterval)+1
         allocate(phase(totallength))
@@ -173,7 +171,8 @@ subroutine Solve()!Diagonalize H, can be easily propagated by exp(-iE/hbar) * H 
         deallocate(eigval)
         do i=1,lt
             psya=psya*phase
-            psyd=matmul(Hamiltonian,psya)!Transform back to coordinate representation
+            !psyd=matmul(Hamiltonian,psya)!Transform back to coordinate representation
+            call zgemv('N',totallength,totallength,(1d0,0d0),Hamiltonian,totallength,psya,1,(0d0,0d0),psyd,1)
             forall(j=1:NState)
                 psy(:,j,i)=psyd((j-1)*lx+1:j*lx)
             end forall
@@ -189,6 +188,7 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
     real*8::al
     complex*16,allocatable,dimension(:)::eigval,psyevolveold,psyevolvenew
     complex*16,allocatable,dimension(:,:)::eigvec
+    call InitializeDVRParameter()
     !discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
@@ -198,7 +198,7 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
         write(*,*)'Automatically set dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         al=pim2/kmin
-        NAbsorbGrid=ceiling(al/dx)-1
+        NAbsorbGrid=floor(al/dx)-1
         lx=NGrid+2*NAbsorbGrid
         allocate(x(NGrid+2*NAbsorbGrid))
         j=NAbsorbGrid+NGrid
@@ -211,17 +211,17 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
         end forall
         totallength=NState*lx
         allocate(HamiltonianAbsorb(totallength,totallength))
-        HamiltonianAbsorb=HamiltonianDVRAbsorb(x,dx,NState,lx)
-        HamiltonianAbsorb=-ci*HamiltonianAbsorb
+        call HamiltonianDVRAbsorb(x,dx,NState,lx)
+        HamiltonianAbsorb=-ci/hbar*HamiltonianAbsorb
     !discretize time
         if(totallength>maxtotallength) then
-            write(*,*)'Auto dt generation is disabled due to cost'
+            write(*,*)'Auto dt determination is disabled due to cost'
             write(*,*)'The dimension of Hamiltonian is',totallength
         elseif(AutoStep) then
             allocate(eigval(totallength))
             allocate(eigvec(totallength,totallength))
             call My_zgeev('N',HamiltonianAbsorb,eigval,eigvec,totallength)
-            dt=min(1d0/maxval(abs(eigval)),pim2*mass/hbar/kmax**2,maxdt)
+            dt=min(1d0/maxval(abs(eigval)),pim2*mass/hbar/kmax/kmax,maxdt)
             deallocate(eigval)
             deallocate(eigvec)
         end if
@@ -252,8 +252,9 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
                         psy(:,j,1+i/OutputFreq)=psyevolvenew((j-1)*lx+1:j*lx)
                     end forall
                 end if
-            !check whether the population has been absorbed too much
-                if(abs(dot_product(psyevolvenew,psyevolvenew)*dx-1d0)>minpopdev) then
+WRITE(*,*)I,dot_product(psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid),psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid))*dx
+            !check whether too much population has gone out of the true dynamics area
+                if(abs(dot_product(psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid),psyevolvenew(NAbsorbGrid+1:NAbsorbGrid+NGrid))*dx-1d0)>minpopdev) then
                     lt=1+i/OutputFreq
                     exit
                 end if
@@ -276,6 +277,7 @@ subroutine scan_solve(Transmission,Reflection)
     complex*16,allocatable,dimension(:,:)::eigvec
     transmission=0d0
     reflection=0d0
+    call InitializeDVRParameter()
     !discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
@@ -285,7 +287,7 @@ subroutine scan_solve(Transmission,Reflection)
         write(*,*)'Automatically set dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         al=pim2/kmin
-        NAbsorbGrid=ceiling(al/dx)-1
+        NAbsorbGrid=floor(al/dx)-1
         lx=NGrid+2*NAbsorbGrid
         allocate(x(NGrid+2*NAbsorbGrid))
         j=NAbsorbGrid+NGrid
@@ -300,12 +302,14 @@ subroutine scan_solve(Transmission,Reflection)
         nright=j+1
         totallength=NState*lx
         allocate(Hamiltonian(totallength,totallength))
-        Hamiltonian=-ci*HamiltonianDVR(x,dx,NState,lx)
+        call HamiltonianDVR(x,dx,NState,lx)
+        Hamiltonian=-ci/hbar*Hamiltonian
         allocate(HamiltonianAbsorb(totallength,totallength))
-        HamiltonianAbsorb=-ci*HamiltonianDVRAbsorb(x,dx,NState,lx)
+        call HamiltonianDVRAbsorb(x,dx,NState,lx)
+        HamiltonianAbsorb=-ci/hbar*HamiltonianAbsorb
     !discretize time
         if(totallength>maxtotallength) then
-            write(*,*)'Auto dt generation is disabled due to cost'
+            write(*,*)'Auto dt determination is disabled due to cost'
             write(*,*)'The dimension of Hamiltonian is',totallength
         elseif(AutoStep) then
             allocate(eigval(totallength))
@@ -350,10 +354,13 @@ subroutine scan_solve(Transmission,Reflection)
         end do
         ActualTime=(lt-1)*dt
     !clean up
-        deallocate(Hamiltonian)
-        deallocate(HamiltonianAbsorb)
         deallocate(psyevolve)
         deallocate(psyevolve_absorb)
+        !Module wide work space
+        deallocate(Hamiltonian)
+        deallocate(HamiltonianAbsorb)
+        !Global work space
+        deallocate(x)
 end subroutine scan_solve
 
 !Get the matrix form of x, p, xx, xp, pp (Higher order p terms have not been derived)
