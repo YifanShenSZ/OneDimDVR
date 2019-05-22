@@ -337,14 +337,6 @@ subroutine ReadInput()
     end if
 end subroutine ReadInput
 
-subroutine Initialize()
-    if(JobType=='NewTrajectory'.or.JobType=='TR-p0') then!Need to propagate wavefunction
-        
-    else!Read the old wavefunction and do some analyzation
-        
-    end if
-end subroutine Initialize
-
 subroutine ReadTrajectory()
     integer::i,j,k
     real*8::re,im
