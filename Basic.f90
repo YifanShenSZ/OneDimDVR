@@ -14,9 +14,9 @@ module Basic
 
 !Programwide accessed input variable
     !general control
-    character*32::jobtype,steptype
+    character*32::JobType
     integer::NState
-    real*8::mass,x0,totaltime,left,right,maxdx,maxdt
+    real*8::mass,x0,TotalTime,left,right,maxdx,maxdt
     !NewTrajectory only
     real*8::p0,OutputInterval
     logical::ScatteringProblem

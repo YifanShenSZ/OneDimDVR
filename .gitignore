@@ -4,5 +4,8 @@ My Advisor Results - OneDimDVR/
 x64/
 *.u2d
 *.vfproj
+BAK*
 *.in
 *.DVR
+*.txt
+*.gif

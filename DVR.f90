@@ -126,18 +126,18 @@ subroutine EvolveAbsorb(d,u,N)
 end subroutine EvolveAbsorb
 
 !Numerically solve the evolution of psy0, and output the trajectory
-subroutine Solve()
+subroutine Solve()!Diagonalize H, can be easily propagated by exp(-iE/hbar) * H eigen vector
     integer::i,j,index,totallength,OutputFreq
     real*8::al
-    complex*16,allocatable,dimension(:)::eigval,psyevolveold,psyevolvenew
-    complex*16,allocatable,dimension(:,:)::psyevolve,eigvec
+    real*8,allocatable,dimension(:)::eigval
+    complex*16,allocatable,dimension(:)::psya,psyd,phase
     !discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
             call dScientificNotation(dx,i)
             dx=floor(dx)*10d0**i
         end if
-        write(*,*)'dx =',dx
+        write(*,*)'Automatically set dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         NAbsorbGrid=0
         lx=NGrid
@@ -146,57 +146,45 @@ subroutine Solve()
             x(i)=left+(i-1)*dx
         end forall
         totallength=NState*lx
+    !Diagonalize Hamiltonian
         allocate(Hamiltonian(totallength,totallength))
-        Hamiltonian=-ci*HamiltonianDVR(x,dx,NState,lx)
-    !discretize time
-        if(totallength>maxtotallength) then
-            write(*,*)'To prevent too slow generation of auto dt, auto dt disabled'
-            write(*,*)'The dimension of Hamiltonian is',totallength
-        elseif(AutoStep) then
-            allocate(eigval(totallength))
-            allocate(eigvec(totallength,totallength))
-            call My_zgeev('N',Hamiltonian,eigval,eigvec,totallength)
-            dt=min(1d0/maxval(abs(eigval)),pim2*mass/hbar/kmax**2,maxdt)
-            deallocate(eigval)
-            deallocate(eigvec)
-        end if
-        OutputFreq=Ceiling(OutputInterval/dt)
-        dt=OutputInterval/OutputFreq
-        write(*,*)'dt =',dt
-    !prepare
-        lt=floor(totaltime/OutputInterval)+1
+        Hamiltonian=HamiltonianDVR(x,dx,NState,lx)
+        allocate(eigval(totallength))
+        call My_zheev('V',Hamiltonian,eigval,totallength)
+    !Initial condition
         allocate(psy(lx,NState,lt))
-        allocate(psyevolveold(totallength))
-        allocate(psyevolvenew(totallength))
+        allocate(psya(totallength))
+        allocate(psyd(totallength))
         index=1
         do j=1,NState
             do i=1,lx
                 psy(i,j,1)=psy0(x(i),j)
-                psyevolveold(index)=psy(i,j,1)
+                psyd(index)=psy(i,j,1)
                 index=index+1
             end do
         end do
-    !solve
-        write(*,*)'Total snap shots =',(lt-1)*OutputFreq
-        write(*,*)'Evolving...'
-        do i=1,(lt-1)*OutputFreq
-            call zRK4(psyevolveold,psyevolvenew,Evolve,dt,totallength)
-            !write trajectory
-                if(mod(i,OutputFreq)==0) then
-                    forall(j=1:NState)
-                        psy(:,j,1+i/OutputFreq)=psyevolvenew((j-1)*lx+1:j*lx)
-                    end forall
-                end if
-            !get ready for next loop
-                psyevolveold=psyevolvenew
+        psya=matmul(transpose(Hamiltonian),psyd)
+    !Propagate by exp(-iE/hbar) * H eigen vector
+        lt=floor(totaltime/OutputInterval)+1
+        allocate(phase(totallength))
+        forall(i=1:totallength)
+            phase(i)=exp(-ci*eigval(i))*OutputInterval
+        end forall
+        deallocate(eigval)
+        do i=1,lt
+            psya=psya*phase
+            psyd=matmul(Hamiltonian,psya)!Transform back to coordinate representation
+            forall(j=1:NState)
+                psy(:,j,i)=psyd((j-1)*lx+1:j*lx)
+            end forall
         end do
-        ActualTime=(lt-1)*OutputInterval
     !clean up
         deallocate(Hamiltonian)
-        deallocate(psyevolveold)
-        deallocate(psyevolvenew)
+        deallocate(psya)
+        deallocate(psyd)
+        deallocate(phase)
 end subroutine Solve
-subroutine SolveAbsorb()
+subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must use RK4
     integer::i,j,index,totallength,OutputFreq
     real*8::al
     complex*16,allocatable,dimension(:)::eigval,psyevolveold,psyevolvenew
@@ -207,7 +195,7 @@ subroutine SolveAbsorb()
             call dScientificNotation(dx,i)
             dx=floor(dx)*10d0**i
         end if
-        write(*,*)'dx =',dx
+        write(*,*)'Automatically set dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         al=pim2/kmin
         NAbsorbGrid=ceiling(al/dx)-1
@@ -227,7 +215,7 @@ subroutine SolveAbsorb()
         HamiltonianAbsorb=-ci*HamiltonianAbsorb
     !discretize time
         if(totallength>maxtotallength) then
-            write(*,*)'to prevent stackoverflow, auto dt disabled'
+            write(*,*)'Auto dt generation is disabled due to cost'
             write(*,*)'The dimension of Hamiltonian is',totallength
         elseif(AutoStep) then
             allocate(eigval(totallength))
@@ -239,7 +227,7 @@ subroutine SolveAbsorb()
         end if
         OutputFreq=Ceiling(OutputInterval/dt)
         dt=OutputInterval/OutputFreq
-        write(*,*)'dt =',dt
+        write(*,*)'Automatically set dt =',dt,'a.u.'
     !prepare
         lt=floor(totaltime/OutputInterval)+1
         allocate(psy(lx,NState,lt))
@@ -294,7 +282,7 @@ subroutine scan_solve(Transmission,Reflection)
             call dScientificNotation(dx,i)
             dx=floor(dx)*10d0**i
         end if
-        write(*,*)'dx =',dx
+        write(*,*)'Automatically set dx =',dx,'a.u.'
         NGrid=floor((right-left)/dx)+1
         al=pim2/kmin
         NAbsorbGrid=ceiling(al/dx)-1
@@ -317,7 +305,7 @@ subroutine scan_solve(Transmission,Reflection)
         HamiltonianAbsorb=-ci*HamiltonianDVRAbsorb(x,dx,NState,lx)
     !discretize time
         if(totallength>maxtotallength) then
-            write(*,*)'to prevent stackoverflow, auto dt disabled'
+            write(*,*)'Auto dt generation is disabled due to cost'
             write(*,*)'The dimension of Hamiltonian is',totallength
         elseif(AutoStep) then
             allocate(eigval(totallength))
@@ -331,7 +319,7 @@ subroutine scan_solve(Transmission,Reflection)
             call dScientificNotation(dt,i)
             dt=floor(dt)*10d0**i
         end if
-        write(*,*)'dt =',dt
+        write(*,*)'Automatically set dt =',dt,'a.u.'
         lt=floor(totaltime/dt)+1
     !prepare
         allocate(psyevolve(totallength))
