@@ -24,7 +24,6 @@ program main
 !---------- Initialize ----------
     call ShowTime()
     call ReadInput()
-    call Initialize()
 !------------- End --------------
 
 !----------- Run job ------------
