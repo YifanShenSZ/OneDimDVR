@@ -313,9 +313,11 @@ subroutine scan_solve(Transmission,Reflection)
         elseif(AutoStep) then
             allocate(eigval(totallength))
             allocate(eigvec(totallength,totallength))
-            call My_zgeev('N',Hamiltonian,eigval,eigvec,totallength)
-            dt=min(1d0/maxval(abs(eigval)),maxdt)
-            call My_zgeev('N',HamiltonianAbsorb,eigval,eigvec,totallength)
+            eigvec=Hamiltonian
+            call My_zgeev('N',eigvec,eigval,eigvec,totallength)
+            dt=min(1d0/maxval(abs(eigval)),pim2*mass/hbar/kmax/kmax,maxdt)
+            eigvec=HamiltonianAbsorb
+            call My_zgeev('N',eigvec,eigval,eigvec,totallength)
             dt=min(dt,1d0/maxval(abs(eigval)))
             deallocate(eigval)
             deallocate(eigvec)
