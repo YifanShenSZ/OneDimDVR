@@ -16,7 +16,9 @@ Supported job types:
 
 Modify Basic.f90 for different initial wave function and potential
 
-Dependency: please compile together with my Fortran-library
+Dependency:
+* My Fortran-Library, as written in MyLib of makefile
+* My Python-Library, as written in Import library section of Analyze.py
 
 Reference:
 > 1. W. H. Miller 1992 J. Chem. Phys.

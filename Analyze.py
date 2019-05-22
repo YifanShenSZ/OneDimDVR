@@ -131,7 +131,6 @@ def Animate_Density(left,right,x,t,psy,NState,speed=1.0,title='Density',xlabel='
 jobtype,NState,mass,x0,TotalTime,left,right,maxdx,maxdt,p0,dt,Absorbed,p0left,p0right,dp0=Get_input('OneDimDVR.in')
 #Read parameters used in DVR evolution
 NGrid,dx,actualtime,lt,lp0,NState=Get_ParametersUsed('ParametersUsed.DVR')
-
 if(jobtype=='NewTrajectory'):
     x=Get_Grid('x.DVR')
     t=Get_Grid('t.DVR')
