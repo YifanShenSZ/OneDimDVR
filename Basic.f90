@@ -62,7 +62,7 @@ subroutine InitializeDVRParameter()
         dx=maxdx
         dt=maxdt
         kmax=0d0
-        d=0.25d0!User have to specify the initial variance of x
+        d=0.1776604496914905d0**2!User have to specify the initial variance of x
     end if
 end subroutine InitializeDVRParameter
 
@@ -71,8 +71,8 @@ real*8 function potential(x,i,j)!Some scattering models take mass as argument
     integer,intent(in)::i,j
     !Scattering model
         !Gaussian well
-            real*8,parameter::p_peak=10d0,miu=0d0,sigma=3d0
-            potential=-p_peak**2*0.5d0/mass*exp(-(x-miu)**2/2d0/sigma**2)
+            !real*8,parameter::p_peak=10d0,miu=0d0,sigma=3d0
+            !potential=-p_peak**2*0.5d0/mass*exp(-(x-miu)**2/2d0/sigma**2)
         !Gaussian barrier
             !real*8,parameter::p_peak=10d0,miu=0d0,sigma=3d0
             !potential=p_peak**2*0.5d0/mass*exp(-(x-miu)**2/2d0/sigma**2)
@@ -124,10 +124,10 @@ real*8 function potential(x,i,j)!Some scattering models take mass as argument
             !x2=x*x
             !potential=x2*(2.4d-5*x2-3d-4)
         !6th order double well
-            !real*8::x2,x4
-            !x2=x*x
-            !x4=x2*x2
-            !potential=3d-2*x2*(x4+2d0*x2-1d0)
+            real*8::x2,x4
+            x2=x*x
+            x4=x2*x2
+            potential=3d-2*x2*(x4+2d0*x2-1d0)
 end function potential
 
 end module Basic
