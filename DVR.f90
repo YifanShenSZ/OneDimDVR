@@ -168,7 +168,7 @@ subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) *
             phase(i)=exp(-ci/hbar*eigval(i)*OutputInterval)
         end forall
         deallocate(eigval)
-        do i=1,lt
+        do i=2,lt
             psya=psya*phase
             !psyd=matmul(Hamiltonian,psya)!Transform back to coordinate representation
             call zgemv('N',totallength,totallength,(1d0,0d0),Hamiltonian,totallength,psya,1,(0d0,0d0),psyd,1)
