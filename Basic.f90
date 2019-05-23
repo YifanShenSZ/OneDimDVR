@@ -8,9 +8,8 @@ module Basic
     use LinearAlgebra
     implicit none
 
-!Constant
-    integer,parameter::SMDOrder=2
-    real*8::hbar=1d0,c=2.62206d0,cs=6.87519864356d0
+!Parameter
+    integer,parameter::SMDOrder=2!Higher order SMD operators in DVR have not been derived
 
 !Programwide accessed input variable
     !General control
@@ -28,6 +27,9 @@ module Basic
     real*8,allocatable,dimension(:)::x,t,p0scan
     real*8,allocatable,dimension(:,:,:,:)::wigner
     complex*16,allocatable,dimension(:,:,:)::psy,phi
+
+!Constant
+    real*8,parameter::hbar=1d0,c=2.62206d0,cs=6.87519864356d0
 
 contains
 !Initial wave function
