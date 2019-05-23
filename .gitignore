@@ -6,6 +6,6 @@ x64/
 *.vfproj
 BAK*
 *.in
-*.DVR
+*.out
 *.txt
 *.gif
