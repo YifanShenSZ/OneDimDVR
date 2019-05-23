@@ -1,0 +1,34 @@
+This is the main input file for OneDimDVR. Every quantity is in atomic unit
+
+Job type: (NewTrajectory, TR-p0, SMD, pRepresentation, WignerDistribution)
+NewTrajectory
+Number of electronic state:
+2
+Mass:
+2000
+Initial average position x0:
+-10
+Left boundary:
+-20
+Right boundary:
+10
+Upper limit of grid spacing dx:
+0.01
+Upper limit of time step dt:
+1
+(NewTrajectory only) Initial average momentum p0:
+0
+(NewTrajectory only) Total time of evolution:
+10000
+(NewTrajectory only) Output interval:
+1.0
+(NewTrajectory only) Is this a scattering problem? (T = yes, F = no) (Absorbing potential is on if T)
+F
+(TR-p0 and pRepresentation only) min p0:
+5
+(TR-p0 and pRepresentation only) max p0:
+20
+(TR-p0 and pRepresentation only) dp0:
+1
+Do you want advanced input? (T = yes, F = no)
+F
