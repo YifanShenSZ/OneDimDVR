@@ -1,6 +1,3 @@
-''' User input '''
-kPlotRange=[-5.0,5.0]# Plot range in pPrepresentation animation
-
 ''' Import libraries '''
 import sys# Standard library
 import numpy
