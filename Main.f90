@@ -13,6 +13,8 @@ program main
         type SMD4PArray
             type(SMD3PArray),allocatable,dimension(:)::NState
         end type SMD4PArray
+    !Main only accessed input variable
+        character*32::JobType
     !Work variable
     integer::i,j,k,l,m,n,iorder,jorder,mm,nn,nSMD
     real*8::xave,pave,sigmax,sigmap
@@ -298,8 +300,6 @@ subroutine ReadInput()
         read(99,*)
         read(99,*)x0
         read(99,*)
-        read(99,*)TotalTime
-        read(99,*)
         read(99,*)left
         read(99,*)
         read(99,*)right
@@ -309,6 +309,8 @@ subroutine ReadInput()
         read(99,*)maxdt
         read(99,*)
         read(99,*)p0
+        read(99,*)
+        read(99,*)TotalTime
         read(99,*)
         read(99,*)OutputInterval
         read(99,*)

@@ -142,7 +142,7 @@ subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) *
         end forall
         totallength=NState*lx
     !Discretize time
-        lt=floor(totaltime/OutputInterval)+1
+        lt=floor(TotalTime/OutputInterval)+1
     !Diagonalize Hamiltonian
         allocate(Hamiltonian(totallength,totallength))
         call HamiltonianDVR(x,dx,NState,lx)
@@ -177,10 +177,11 @@ subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) *
             end forall
         end do
     !clean up
-        deallocate(Hamiltonian)
         deallocate(psya)
         deallocate(psyd)
         deallocate(phase)
+        !Module wide work space
+        deallocate(Hamiltonian)
 end subroutine Solve
 subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must use RK4
     integer::i,j,index,totallength,OutputFreq
@@ -228,8 +229,8 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
         OutputFreq=Ceiling(OutputInterval/dt)
         dt=OutputInterval/OutputFreq
         write(*,*)'dt =',dt,'a.u.'
-    !prepare
-        lt=floor(totaltime/OutputInterval)+1
+    !Prepare
+        lt=floor(TotalTime/OutputInterval)+1
         allocate(psy(lx,NState,lt))
         allocate(psyevolveold(totallength))
         allocate(psyevolvenew(totallength))
@@ -241,7 +242,7 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
                 index=index+1
             end do
         end do
-    !solve
+    !Solve
         write(*,*)'Total snap shots =',(lt-1)*OutputFreq
         write(*,*)'Evolving...'
         do i=1,(lt-1)*OutputFreq
@@ -257,14 +258,14 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
                     lt=1+i/OutputFreq
                     exit
                 end if
-            !Get ready for next loop
-                psyevolveold=psyevolvenew
+            psyevolveold=psyevolvenew!Get ready for next loop
         end do
         ActualTime=(lt-1)*OutputInterval
     !clean up
-        deallocate(HamiltonianAbsorb)
         deallocate(psyevolveold)
         deallocate(psyevolvenew)
+        !Module wide work space
+        deallocate(HamiltonianAbsorb)
 end subroutine SolveAbsorb
 
 !Numerically solve the evolution of different psy0 with difference p0, and save the transmission and reflection
@@ -277,7 +278,7 @@ subroutine scan_solve(Transmission,Reflection)
     transmission=0d0
     reflection=0d0
     call InitializeDVRParameter()
-    !discretize space
+    !Discretize space
         if(AutoStep) then
             dx=min(pim2/5d0/kmax,maxdx)
             call dScientificNotation(dx,i)
@@ -306,7 +307,7 @@ subroutine scan_solve(Transmission,Reflection)
         allocate(HamiltonianAbsorb(totallength,totallength))
         call HamiltonianDVRAbsorb(x,dx,NState,lx)
         HamiltonianAbsorb=-ci/hbar*HamiltonianAbsorb
-    !discretize time
+    !Discretize time
         if(totallength>maxtotallength) then
             write(*,*)'Auto dt determination is disabled due to cost'
             write(*,*)'The dimension of Hamiltonian is',totallength
@@ -325,8 +326,7 @@ subroutine scan_solve(Transmission,Reflection)
             dt=floor(dt)*10d0**i
         end if
         write(*,*)'dt =',dt,'a.u.'
-        lt=floor(totaltime/dt)+1
-    !prepare
+    !Prepare
         allocate(psyevolve(totallength))
         allocate(psyevolve_absorb(totallength))
         index=1
@@ -336,25 +336,20 @@ subroutine scan_solve(Transmission,Reflection)
                 index=index+1
             end do
         end do
-    !solve
-        do i=2,lt
-            call zRK4(psyevolve_absorb,psyevolve,Evolve,dt,totallength)
-            call zRK4(psyevolve_absorb,psyevolve_absorb,EvolveAbsorb,dt,totallength)
-            forall(j=1:NState)
-                reflection(j)=reflection(j)&
-                    +dx*(dot_product(psyevolve((j-1)*lx+1:(j-1)*lx+nleft),psyevolve((j-1)*lx+1:(j-1)*lx+nleft))&
-                    -dot_product(psyevolve_absorb((j-1)*lx+1:(j-1)*lx+nleft),psyevolve_absorb((j-1)*lx+1:(j-1)*lx+nleft)))
-                transmission(j)=transmission(j)&
-                    +dx*(dot_product(psyevolve((j-1)*lx+nright:j*lx),psyevolve((j-1)*lx+nright:j*lx))&
-                    -dot_product(psyevolve_absorb((j-1)*lx+nright:j*lx),psyevolve_absorb((j-1)*lx+nright:j*lx)))
-            end forall
-            if(real(dot_product(psyevolve_absorb,psyevolve_absorb))*dx<minpop) then
-                lt=i
-                exit
-            end if
-        end do
-        ActualTime=(lt-1)*dt
-    !clean up
+    do!Solve
+        call zRK4(psyevolve_absorb,psyevolve,Evolve,dt,totallength)
+        call zRK4(psyevolve_absorb,psyevolve_absorb,EvolveAbsorb,dt,totallength)
+        forall(j=1:NState)
+            reflection(j)=reflection(j)&
+                +dx*(dot_product(psyevolve((j-1)*lx+1:(j-1)*lx+nleft),psyevolve((j-1)*lx+1:(j-1)*lx+nleft))&
+                -dot_product(psyevolve_absorb((j-1)*lx+1:(j-1)*lx+nleft),psyevolve_absorb((j-1)*lx+1:(j-1)*lx+nleft)))
+            transmission(j)=transmission(j)&
+                +dx*(dot_product(psyevolve((j-1)*lx+nright:j*lx),psyevolve((j-1)*lx+nright:j*lx))&
+                -dot_product(psyevolve_absorb((j-1)*lx+nright:j*lx),psyevolve_absorb((j-1)*lx+nright:j*lx)))
+        end forall
+        if(real(dot_product(psyevolve_absorb,psyevolve_absorb))*dx<minpop) exit
+    end do
+    !Clean up
         deallocate(psyevolve)
         deallocate(psyevolve_absorb)
         !Module wide work space

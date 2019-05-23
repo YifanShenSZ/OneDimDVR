@@ -13,12 +13,11 @@ module Basic
     real*8::hbar=1d0,c=2.62206d0,cs=6.87519864356d0
 
 !Programwide accessed input variable
-    !general control
-    character*32::JobType
+    !General control
     integer::NState
-    real*8::mass,x0,TotalTime,left,right,maxdx,maxdt
+    real*8::mass,x0,left,right,maxdx,maxdt
     !NewTrajectory only
-    real*8::p0,OutputInterval
+    real*8::p0,TotalTime,OutputInterval
     logical::ScatteringProblem
     !TR-p0 only
     real*8::p0left,p0right,dp0
@@ -62,7 +61,8 @@ subroutine InitializeDVRParameter()
         dx=maxdx
         dt=maxdt
         kmax=0d0
-        d=0.1776604496914905d0**2!User have to specify the initial variance of x
+        !User have to specify the initial variance of x
+        d=0.1776604496914905d0**2!6-th order double well,x0=-0.463950899364933
     end if
 end subroutine InitializeDVRParameter
 
@@ -83,21 +83,21 @@ real*8 function potential(x,i,j)!Some scattering models take mass as argument
             !real*8,parameter::p_peak=10d0,halfwidth=5d0
             !potential=-p_peak**2*0.25d0/mass*Erfc(x/halfwidth)
         !Simple avoided crossing
-            !if(i==1.and.j==1) then
-            !    if(x>0d0) then
-            !        potential=0.01d0*(1d0-Exp(-1.6d0*x))
-            !    else
-            !        potential=0.01d0*(Exp(1.6d0*x)-1d0)
-            !    end if
-            !else if(i==2.and.j==2) then
-            !    if(x>0d0) then
-            !        potential=0.01d0*(Exp(-1.6d0*x)-1d0)
-            !    else
-            !        potential=0.01d0*(1d0-Exp(1.6d0*x))
-            !    end if
-            !else
-            !    potential=0.005d0*exp(-x**2)
-            !end if
+            if(i==1.and.j==1) then
+                if(x>0d0) then
+                    potential=0.01d0*(1d0-Exp(-1.6d0*x))
+                else
+                    potential=0.01d0*(Exp(1.6d0*x)-1d0)
+                end if
+            else if(i==2.and.j==2) then
+                if(x>0d0) then
+                    potential=0.01d0*(Exp(-1.6d0*x)-1d0)
+                else
+                    potential=0.01d0*(1d0-Exp(1.6d0*x))
+                end if
+            else
+                potential=0.005d0*exp(-x**2)
+            end if
         !Dual avoided crossing
             !if(i==1.and.j==1) then
             !    potential=0d0
@@ -124,10 +124,10 @@ real*8 function potential(x,i,j)!Some scattering models take mass as argument
             !x2=x*x
             !potential=x2*(2.4d-5*x2-3d-4)
         !6th order double well
-            real*8::x2,x4
-            x2=x*x
-            x4=x2*x2
-            potential=3d-2*x2*(x4+2d0*x2-1d0)
+            !real*8::x2,x4
+            !x2=x*x
+            !x4=x2*x2
+            !potential=3d-2*x2*(x4+2d0*x2-1d0)
 end function potential
 
 end module Basic
