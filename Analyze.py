@@ -1,3 +1,6 @@
+''' User input '''
+kPlotRange=[-5.0,5.0]# Plot range in pPrepresentation animation
+
 ''' Import libraries '''
 import sys# Standard library
 import numpy
@@ -49,7 +52,7 @@ def Get_Grid(source):
         s[i]=float(data[i])
     return s
 
-def Get_psy(source,lx,NState,lt):
+def Get_wavefunction(source,lx,NState,lt):
     with open(source,'r') as f:
         data=f.readlines()
     psy=numpy.empty((lx,NState,lt),dtype=complex)
@@ -131,14 +134,14 @@ def Animate_Density(left,right,x,t,psy,NState,speed=1.0,title='Density',xlabel='
 #Read input
 jobtype,NState,mass,x0,TotalTime,left,right,maxdx,maxdt,p0,dt,Absorbed,p0left,p0right,dp0=Get_input('OneDimDVR.in')
 #Read parameters used in DVR evolution
-NGrid,dx,actualtime,lt,lp0,NState=Get_ParametersUsed('ParametersUsed.DVR')
+NGrid,dx,actualtime,lt,lp0,NState=Get_ParametersUsed('ParametersUsed.out')
 if(jobtype=='NewTrajectory'):
-    x=Get_Grid('x.DVR')
-    t=Get_Grid('t.DVR')
-    psy=Get_psy('Psy.DVR',x.shape[0],NState,lt)
+    x=Get_Grid('x.out')
+    t=Get_Grid('t.out')
+    psy=Get_wavefunction('Psy.out',x.shape[0],NState,lt)
     Animate_Density(left,right,x,t,psy,NState,title='Coordinate space density',FileName='xDensity')
 elif(jobtype=='TR-p0'):
-    k,tran,ref=Get_TR('TR.DVR',NState)
+    k,tran,ref=Get_TR('TR.out',NState)
     with open('TR.txt','w') as f:
         print('k',end='\t',file=f)
         for i in range(NState):
@@ -162,9 +165,9 @@ elif(jobtype=='TR-p0'):
     plt.show()
 elif(jobtype=='SMD'):
     SMDOrder=2#Currently only support 2
-    t=Get_Grid('t.DVR')
+    t=Get_Grid('t.out')
     nSMD=int(SMDOrder*(SMDOrder+3)/2)+1
-    SMD=Get_SMD('SMD.DVR',NState,lt,nSMD)
+    SMD=Get_SMD('SMD.out',NState,lt,nSMD)
     with open('SMD.txt','w') as f:
         print('t/a.u.',end='\t',file=f)
         for i in range(NState):
@@ -177,15 +180,15 @@ elif(jobtype=='SMD'):
                     print(SMD[j,k,i],end='\t',file=f)
             print(file=f)
 elif(jobtype=='pRepresentation'):
-    k=Get_Grid('k.DVR')
-    t=Get_Grid('t.DVR')
-    psy=Get_psy('Phi.DVR',k.shape[0],NState,lt)
-    Animate_Density(k[0],k[k.shape[0]-1],k,t,psy,NState,title='Momentum space density',xlabel='p [a.u.]',FileName='pDensity')
+    k=Get_Grid('k.out')
+    t=Get_Grid('t.out')
+    phi=Get_wavefunction('Phi.out',k.shape[0],NState,lt)
+    Animate_Density(p0left,p0right,k,t,phi,NState,title='Momentum space density',xlabel='p [a.u.]',FileName='pDensity')
 elif(jobtype=='WignerRepresentation'):
-    x=Get_Grid('x.DVR')
-    k=Get_Grid('k.DVR')
-    t=Get_Grid('t.DVR')
-    wigner=Get_Wigner('Wigner.DVR',NGrid,NGrid,NState,lt)
+    x=Get_Grid('x.out')
+    k=Get_Grid('k.out')
+    t=Get_Grid('t.out')
+    wigner=Get_Wigner('Wigner.out',NGrid,NGrid,NState,lt)
     for i in range(t.shape[0]):
         ax=plt.subplot(111,projection='3d')
         ax.scatter(x[j],y[i],z[j,i])

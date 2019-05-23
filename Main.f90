@@ -1,6 +1,6 @@
 !Numerically solve the time dependent schrodinger equation, method:
 !DVR: Colbert Miller 1992, Absorb: Manolopoulos 2004
-!IO unit: input time in ps or fs (specified in input file), others in atomic unit
+!IO unit: atomic unit
 !Computation unit: atomic unit
 program main
     use Basic
@@ -42,17 +42,17 @@ program main
                 forall(i=1:lt)
                     t(i)=(i-1)*OutputInterval
                 end forall
-                open(unit=99,file='x.DVR',status='replace')
+                open(unit=99,file='x.out',status='replace')
                     do i=NAbsorbGrid+1,NAbsorbGrid+NGrid
                         write(99,*)x(i)
                     end do
                 close(99)
-                open(unit=99,file='t.DVR',status='replace')
+                open(unit=99,file='t.out',status='replace')
                     do i=1,lt
                         write(99,*)t(i)
                     end do
                 close(99)
-                open(unit=99,file='Psy.DVR',status='replace')
+                open(unit=99,file='Psy.out',status='replace')
                     do k=1,lt
                         do j=1,NState
                             do i=NAbsorbGrid+1,NAbsorbGrid+NGrid
@@ -84,7 +84,7 @@ program main
                 write(*,*)'Actual evolution time =',ActualTime
             end do
             !output
-                open(unit=99,file='TR.DVR',status='replace')
+                open(unit=99,file='TR.out',status='replace')
                     do i=1,lp0
                         write(99,*)p0scan(i)
                         do j=1,NState
@@ -165,7 +165,7 @@ program main
                 end do
             end do
             !output
-                open(unit=99,file='SMD.DVR',status='replace')
+                open(unit=99,file='SMD.out',status='replace')
                     do i=1,lt
                         do j=1,NState
                             do iorder=1,SMDOrder
@@ -198,28 +198,27 @@ program main
         case('pRepresentation')
             call ReadTrajectory()
             !prepare
-                allocate(p0scan(2*NGrid))
-                    dp0=hbar*pi/(right-left)
-                    forall(i=1:NGrid)
-                        p0scan(NGrid+i)=i*dp0
-                        p0scan(NGrid-i+1)=-i*dp0
-                    end forall
-                allocate(phi(2*NGrid,NState,lt))
+                lp0=floor((p0right-p0left)/dp0)+1
+                allocate(p0scan(lp0))
+                forall(i=1:lp0)
+                    p0scan(i)=p0left+(i-1)*dp0
+                end forall
+                allocate(phi(lp0,NState,lt))
             do j=1,lt
                 do i=1,NState
-                    call Transform2p(psy(:,i,j),phi(:,i,j),NGrid)
+                    call Transform2p(psy(:,i,j),phi(:,i,j))
                 end do
             end do
             !output
-                open(unit=99,file='k.DVR',status='replace')
-                    do i=1,2*NGrid
+                open(unit=99,file='k.out',status='replace')
+                    do i=1,lp0
                         write(99,*)p0scan(i)
                     end do
                 close(99)
-                open(unit=99,file='Phi.DVR',status='replace')
+                open(unit=99,file='Phi.out',status='replace')
                     do k=1,lt
                         do j=1,NState
-                            do i=1,2*NGrid
+                            do i=1,lp0
                                 write(99,*)real(phi(i,j,k))
                                 write(99,*)imag(phi(i,j,k))
                             end do
@@ -235,7 +234,7 @@ program main
             call ReadTrajectory()
             !prepare
                 allocate(p0scan(NGrid))
-                    open(unit=99,file='k.DVR')
+                    open(unit=99,file='k.out')
                         do i=1,NGrid
                             read(99,*)p0scan(i)
                         end do
@@ -248,7 +247,7 @@ program main
                 end do
             end do
             !output
-                open(unit=99,file='Wigner.DVR',status='replace')
+                open(unit=99,file='Wigner.out',status='replace')
                     do k=1,NState
                         do i=1,lt
                             do j=1,NGrid
@@ -272,7 +271,7 @@ program main
 
 !---------- Clean up ------------
     call ShowTime()
-    open(unit=99,file='ParametersUsed.DVR',status='replace')
+    open(unit=99,file='ParametersUsed.out',status='replace')
         write(99,*)NGrid
         write(99,*)dx
         write(99,*)ActualTime
@@ -300,7 +299,6 @@ subroutine ReadInput()
         read(99,*)x0
         read(99,*)
         read(99,*)TotalTime
-            TotalTime=dAbs(TotalTime)*1000d0*fsInAU!Convert to atomic unit
         read(99,*)
         read(99,*)left
         read(99,*)
@@ -309,12 +307,10 @@ subroutine ReadInput()
         read(99,*)maxdx
         read(99,*)
         read(99,*)maxdt
-            maxdt=dAbs(maxdt)*fsInAU!Convert to atomic unit
         read(99,*)
         read(99,*)p0
         read(99,*)
         read(99,*)OutputInterval
-            OutputInterval=dAbs(OutputInterval)*fsInAU!Convert to atomic unit
         read(99,*)
         read(99,*)ScatteringProblem
         read(99,*)
@@ -339,7 +335,7 @@ end subroutine ReadInput
 subroutine ReadTrajectory()
     integer::i,j,k
     real*8::re,im
-    open(unit=99,file='ParametersUsed.DVR')
+    open(unit=99,file='ParametersUsed.out')
         read(99,*)NGrid
         read(99,*)dx
         read(99,*)ActualTime
@@ -348,13 +344,13 @@ subroutine ReadTrajectory()
         read(99,*)NState
     close(99)
     allocate(x(NGrid))
-        open(unit=99,file='x.DVR')
+        open(unit=99,file='x.out')
             do i=1,NGrid
                 read(99,*)x(i)
             end do
         close(99)
     allocate(psy(NGrid,NState,lt))
-        open(unit=99,file='Psy.DVR')
+        open(unit=99,file='Psy.out')
             do k=1,lt
                 do j=1,NState
                     do i=1,NGrid

@@ -402,15 +402,14 @@ subroutine SMDMatrix(NGrid,nSMD,MatrixForm)
 end subroutine SMDMatrix
 
 !phi(p)=F[psy(x)]
-subroutine Transform2p(psy,phi,NGrid)
-    integer,intent(in)::NGrid
+subroutine Transform2p(psy,phi)
     complex*16,dimension(NGrid),intent(in)::psy
-    complex*16,dimension(2*NGrid),intent(inout)::phi
+    complex*16,dimension(lp0),intent(inout)::phi
     integer::k,i
     real*8,dimension(NGrid)::ones
     complex*16,dimension(NGrid)::temp
     ones=1d0
-    do k=1,2*NGrid
+    do k=1,lp0
         forall(i=1:NGrid)
             temp(i)=exp(-ci/hbar*p0scan(k)*x(i))*psy(i)
         end forall
