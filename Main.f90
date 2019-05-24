@@ -69,6 +69,7 @@ program main
                 deallocate(t)
                 deallocate(psy)
         case('TR-p0')
+            ScatteringProblem=.true.!Transmission and reflection are respect to scattering
             if(.not.AutoStep) write(*,*)'Auto dx dt determination is disabled, adopt user specified upper limit'
             !prepare
                 lp0=floor((p0right-p0left)/dp0)+1
