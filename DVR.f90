@@ -268,7 +268,7 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
         deallocate(HamiltonianAbsorb)
 end subroutine SolveAbsorb
 
-!Numerically solve the evolution of different psy0 with difference p0, and save the transmission and reflection
+!Numerically solve the evolution of psy0, and output the transmission and reflection
 subroutine scan_solve(Transmission,Reflection)
     real*8,dimension(NState),intent(inout)::transmission,reflection
     integer::i,j,index,totallength,nleft,nright
