@@ -5,7 +5,9 @@ module DVR
 !Parameter
     logical::AutoStep=.true.!Whether determine dx and dt automatically
     integer::maxtotallength=2147483647!To prevent too slow determination of auto dt
-    real*8::minpopdev=1d-6,minpop=1d-6!Stop evolution when population no longer equals to 1
+    real*8::minpopdev=1d-6,&!Stop trajectory evolution when population no longer equals to 1
+        minpop=1d-2!Stop transmission & reflection calculation when all population are absorbed
+                   !Note: absorbing potential can only absorb 99%, 1% will be reflected by boundary
 
 !DVR module only variable
     complex*16,allocatable,dimension(:,:)::Hamiltonian,HamiltonianAbsorb
