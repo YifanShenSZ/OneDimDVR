@@ -35,7 +35,7 @@ program main
             if(ScatteringProblem) then
                 write(*,*)'Scattering problem, turn on absorbing potential'
                 call SolveAbsorb()
-                write(*,*)'Actual evolution time =',ActualTime/fsInAU/1000d0,'ps'
+                write(*,*)'Actual evolution time =',(lt-1)*OutputInterval/fsInAU/1000d0,'ps'
             else
                 call Solve()
             end if
@@ -84,7 +84,6 @@ program main
                 call ShowTime()
                 write(*,*)'p0 =',p0
                 call scan_solve(Transmission(:,i),Reflection(:,i))
-                write(*,*)'Actual evolution time =',ActualTime
             end do
             !output
                 open(unit=99,file='TR.out',status='replace')
@@ -277,9 +276,7 @@ program main
     open(unit=99,file='ParametersUsed.out',status='replace')
         write(99,*)NGrid
         write(99,*)dx
-        write(99,*)ActualTime
         write(99,*)lt
-        write(99,*)lp0
         write(99,*)NState
     close(99)
     write(*,*)'Mission success'
@@ -341,9 +338,7 @@ subroutine ReadTrajectory()
     open(unit=99,file='ParametersUsed.out')
         read(99,*)NGrid
         read(99,*)dx
-        read(99,*)ActualTime
         read(99,*)lt
-        read(99,*)lp0
         read(99,*)NState
     close(99)
     allocate(x(NGrid))

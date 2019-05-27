@@ -260,7 +260,6 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
                 end if
             psyevolveold=psyevolvenew!Get ready for next loop
         end do
-        ActualTime=(lt-1)*OutputInterval
     !clean up
         deallocate(psyevolveold)
         deallocate(psyevolvenew)

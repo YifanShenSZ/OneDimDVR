@@ -34,11 +34,9 @@ def Get_ParametersUsed(source):
         data=f.readlines()
     NGrid=int(data[0].strip())
     dx=float(data[1].strip())
-    actualtime=float(data[2].strip())
-    lt=int(data[3].strip())
-    lp0=int(data[4].strip())
-    NState=int(data[5].strip())
-    return NGrid,dx,actualtime,lt,lp0,NState
+    lt=int(data[2].strip())
+    NState=int(data[3].strip())
+    return NGrid,dx,lt,NState
 
 def Get_Grid(source):
     with open(source,'r') as f:
@@ -131,7 +129,7 @@ def Animate_Density(left,right,x,t,psy,NState,speed=1.0,title='Density',xlabel='
 #Read input
 jobtype,NState,mass,x0,TotalTime,left,right,maxdx,maxdt,p0,dt,Absorbed,p0left,p0right,dp0=Get_input('OneDimDVR.in')
 #Read parameters used in DVR evolution
-NGrid,dx,actualtime,lt,lp0,NState=Get_ParametersUsed('ParametersUsed.out')
+NGrid,dx,lt,NState=Get_ParametersUsed('ParametersUsed.out')
 if(jobtype=='NewTrajectory'):
     x=Get_Grid('x.out')
     t=Get_Grid('t.out')

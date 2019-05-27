@@ -23,7 +23,7 @@ module Basic
 
 !Global variable
     integer::NGrid,NAbsorbGrid,lx,lt,lp0
-    real*8::d,dx,dt,kmin,kmax,kmins,ActualTime
+    real*8::d,dx,dt,kmin,kmax,kmins
     real*8,allocatable,dimension(:)::x,t,p0scan
     real*8,allocatable,dimension(:,:,:,:)::wigner
     complex*16,allocatable,dimension(:,:,:)::psy,phi
