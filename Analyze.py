@@ -1,4 +1,4 @@
-''' Import libraries '''
+''' Import library '''
 import sys# Standard library
 import numpy
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ sys.path.append('C:\\Python-Library')# My library path on my Lenovo-E540
 #sys.path.append('C:\\Users\\56402\\OneDrive\\Research\\Source\\Python')# My library path on my surface pro
 from PythonLibrary import *
 
-''' Auxiliary routines '''
+''' Auxiliary routine '''
 def Get_input(source):
     with open(source,'r') as f:
         data=f.readlines()
