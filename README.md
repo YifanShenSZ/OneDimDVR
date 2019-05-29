@@ -14,6 +14,8 @@ Supported job types:
 5. WignerDistribution
 * Convert an old trajectory to phase space
 
+Analyze.py provides visualization for each type of job. Just run it directly after OneDimDVR.exe finishes
+
 Modify Basic.f90 for different initial wave function and potential
 
 Dependency:
