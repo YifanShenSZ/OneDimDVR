@@ -141,7 +141,7 @@ elif(jobtype=='TR-p0'):
             print('Transmission_'+str(i),end='\t',file=f)
             print('Reflection_'+str(i),end='\t',file=f)
         print(file=f)
-        for i in range(lk):
+        for i in range(k.shape[0]):
             print(k[i],end='\t',file=f)
             for j in range(NState):
                 print(tran[i,j],end='\t',file=f)
