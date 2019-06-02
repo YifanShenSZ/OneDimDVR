@@ -67,16 +67,14 @@ def Get_TR(source,NState):
     k=numpy.empty(lk)
     tran=numpy.empty((lk,NState))
     ref=numpy.empty((lk,NState))
-    index=-1
+    index=0
     for i in range(lk):
-        index=index+1
         k[i]=float(data[index].strip())
+        index=index+1
         for j in range(NState):
-            index=index+1
             tran[i,j]=float(data[index].strip())
-            index=index+1
             ref[i,j]=float(data[index+1].strip())
-        print(file=f)
+            index=index+2
     return k,tran,ref
 
 def Get_Wigner(source,lx,lk,NState,lt):
