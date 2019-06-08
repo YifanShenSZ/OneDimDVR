@@ -182,13 +182,5 @@ elif(jobtype=='WignerRepresentation'):
     k=Get_Grid('k.out')
     t=Get_Grid('t.out')
     wigner=Get_Wigner('Wigner.out',NGrid,NGrid,NState,lt)
-    for i in range(t.shape[0]):
-        ax=plt.subplot(111,projection='3d')
-        ax.scatter(x[j],y[i],z[j,i])
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('z')
-        ax.savefig('WignerAtTime'+str(i)+'.jpg')
-        ax.close()
 else:
     print('Unkown job type?')
