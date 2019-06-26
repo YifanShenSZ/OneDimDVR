@@ -9,117 +9,80 @@ module DVR
         minpop=1d-2!Stop transmission & reflection calculation when all population are absorbed
                    !Note: absorbing potential can only absorb 99%, 1% will be reflected by boundary
 
+!Global variable
+    integer::NGrid,NAbsorbGrid,lt,lx
+    real*8,allocatable,dimension(:)::t,x
+    complex*16,allocatable,dimension(:,:,:)::psy
+
 !DVR module only variable
     complex*16,allocatable,dimension(:,:)::Hamiltonian,HamiltonianAbsorb
 
 contains
-!AbsorbedPotential_ij(x)
-function AbsorbedPotential(x,i,j)
-    integer::i,j
-    real*8::x,y
-    complex*16::AbsorbedPotential
-    AbsorbedPotential=potential(x,i,j)
-    if(i==j) then
-        if(x>right) then
-            y=cs*kmins/(pim2**2)*(x-right)**2
-            AbsorbedPotential=AbsorbedPotential-ci*hbar**2*kmins*4d0/mass*((cs+y)/(cs-y)**2-1d0/cs)
-        else if(x<left) then
-            y=cs*kmins/(pim2**2)*(x-left)**2
-            AbsorbedPotential=AbsorbedPotential-ci*hbar**2*kmins*4d0/mass*((cs+y)/(cs-y)**2-1d0/cs)
-        end if
+subroutine NewTrajectory()
+    integer::i,j,k
+    if(.not.AutoStep) write(*,*)'Auto dx dt determination is disabled, adopt user specified upper limit'
+    if(ScatteringProblem) then!Solve
+        write(*,*)'Scattering problem, turn on absorbing potential'
+        call SolveAbsorb()
+        write(*,*)'Actual evolution time =',(lt-1)*OutputInterval
+    else
+        call Solve()
     end if
-end function AbsorbedPotential
-
-!x is the vector of grid points
-!Hamiltonian store as a whole NState*size(x) order matrix
-!can be considered as consisting of NState*NState blocks, ij block is NState i x NState j 
-subroutine HamiltonianDVR(x,dx,NState,lx)
-    real*8,dimension(lx),intent(in)::x
-    real*8,intent(in)::dx
-    integer,intent(in)::NState,lx
-    integer::i,j,k,ii,jj,kk,kkk
-    real*8,dimension(lx,lx)::tran
-    Hamiltonian=(0d0,0d0)
-    do i=1,lx
-        do j=1,lx
-            if(i==j) then
-                tran(i,j)=pisqd3
-            else
-                k=i-j
-                tran(i,j)=2d0/(k*k)
-                if(mod(k,2)) then
-                    tran(i,j)=-tran(i,j)
-                end if
-            end if
+    allocate(t(lt))!Output
+    forall(i=1:lt)
+        t(i)=(i-1)*OutputInterval
+    end forall
+    open(unit=99,file='x.out',status='replace')
+        do i=NAbsorbGrid+1,NAbsorbGrid+NGrid
+            write(99,*)x(i)
         end do
-    end do
-    tran=hbar*hbar/2d0/mass/dx/dx*tran
-    j=1
-    do i=1,NState
-        k=j+lx-1
-        Hamiltonian(j:k,j:k)=tran
-        do ii=1,NState
-            kk=(i-1)*lx
-            kkk=(ii-1)*lx
-            do jj=1,lx
-                kk=kk+1
-                kkk=kkk+1
-                Hamiltonian(kk,kkk)=Hamiltonian(kk,kkk)+potential(x(jj),i,ii)
+    close(99)
+    open(unit=99,file='t.out',status='replace')
+        do i=1,lt
+            write(99,*)t(i)
+        end do
+    close(99)
+    open(unit=99,file='Psy.out',status='replace')
+        do k=1,lt
+            do j=1,NState
+                do i=NAbsorbGrid+1,NAbsorbGrid+NGrid
+                    write(99,*)real(psy(i,j,k))
+                    write(99,*)imag(psy(i,j,k))
+                end do
             end do
         end do
-        j=k+1
+    close(99)
+end subroutine NewTrajectory
+
+subroutine TR_p0()
+    integer::lp0,i,j
+    real*8,allocatable,dimension(:)::p0scan
+    real*8,allocatable,dimension(:,:)::Transmission,Reflection
+    ScatteringProblem=.true.!Transmission and reflection are respect to scattering
+    if(.not.AutoStep) write(*,*)'Auto dx dt determination is disabled, adopt user specified upper limit'
+    lp0=floor((pright-pleft)/dp)+1!Prepare
+    allocate(p0scan(lp0))
+        forall(i=1:lp0)
+            p0scan(i)=pleft+(i-1)*dp
+        end forall
+    allocate(Transmission(NState,lp0))
+    allocate(Reflection(NState,lp0))
+    do i=1,lp0!Loop over different p0
+        p0=p0scan(i)
+        call ShowTime()
+        write(*,*)'p0 =',p0
+        call scan_solve(Transmission(:,i),Reflection(:,i))
     end do
-end subroutine HamiltonianDVR
-subroutine HamiltonianDVRAbsorb(x,dx,NState,lx)
-    real*8,dimension(lx),intent(in)::x
-    real*8,intent(in)::dx
-    integer,intent(in)::NState,lx
-    integer::i,j,k,ii,jj,kk,kkk
-    real*8,dimension(lx,lx)::tran
-    HamiltonianAbsorb=(0d0,0d0)
-    do i=1,lx
-        do j=1,lx
-            if(i==j) then
-                tran(i,j)=pisqd3
-            else
-                k=i-j
-                tran(i,j)=2d0/(k*k)
-                if(mod(k,2)) then
-                    tran(i,j)=-tran(i,j)
-                end if
-            end if
-        end do
-    end do
-    tran=hbar*hbar/2d0/mass/dx/dx*tran
-    j=1
-    do i=1,NState
-        k=j+lx-1
-        HamiltonianAbsorb(j:k,j:k)=tran
-        do ii=1,NState
-            kk=(i-1)*lx
-            kkk=(ii-1)*lx
-            do jj=1,lx
-                kk=kk+1
-                kkk=kkk+1
-                HamiltonianAbsorb(kk,kkk)=HamiltonianAbsorb(kk,kkk)+AbsorbedPotential(x(jj),i,ii)
+    open(unit=99,file='TR.out',status='replace')!Output
+        do i=1,lp0
+            write(99,*)p0scan(i)
+            do j=1,NState
+                write(99,*)Transmission(j,i)
+                write(99,*)Reflection(j,i)
             end do
         end do
-        j=k+1
-    end do
-end subroutine HamiltonianDVRAbsorb
-
-subroutine Evolve(d,u,N)
-    complex*16,dimension(N),intent(inout)::d
-    complex*16,dimension(N),intent(in)::u
-    integer,intent(in)::N
-    call zsymv('L',N,(1d0,0d0),Hamiltonian,N,u,1,(0d0,0d0),d,1)
-end subroutine Evolve
-subroutine EvolveAbsorb(d,u,N)
-    complex*16,dimension(N),intent(inout)::d
-    complex*16,dimension(N),intent(in)::u
-    integer,intent(in)::N
-    call zsymv('L',N,(1d0,0d0),HamiltonianAbsorb,N,u,1,(0d0,0d0),d,1)
-end subroutine EvolveAbsorb
+    close(99)
+end subroutine TR_p0
 
 !Numerically solve the evolution of psy0, and output the trajectory
 subroutine Solve()!Diagonalize H, then propagate wavefunction by exp(-iE/hbar) * H eigen vector
@@ -360,78 +323,114 @@ subroutine scan_solve(Transmission,Reflection)
         deallocate(x)
 end subroutine scan_solve
 
-!Get the matrix form of x, p, xx, xp, pp (Higher order p terms have not been derived)
-!Note that DVR can't be considered as quantum Hilbert space:
-!    < A(t) > = dx * < psy(:,t) | A | psy(:,t) >
-subroutine SMDMatrix(NGrid,nSMD,MatrixForm)
-    integer,intent(in)::NGrid,nSMD
-    complex*16,dimension(NGrid,NGrid,nSMD),intent(inout)::MatrixForm
-    integer::i,j,k
-    MatrixForm=(0d0,0d0)
-    do i=1,SMDOrder
-        k=(i-1)*(i+2)/2+1
-        forall(j=1:NGrid)
-            MatrixForm(j,j,k)=x(j)**i
-        end forall
-    end do
-    do i=1,NGrid
-        do j=1,NGrid
+!Time-dependent Schrodinger equation
+subroutine Evolve(d,u,N)
+    complex*16,dimension(N),intent(inout)::d
+    complex*16,dimension(N),intent(in)::u
+    integer,intent(in)::N
+    call zsymv('L',N,(1d0,0d0),Hamiltonian,N,u,1,(0d0,0d0),d,1)
+end subroutine Evolve
+subroutine EvolveAbsorb(d,u,N)
+    complex*16,dimension(N),intent(inout)::d
+    complex*16,dimension(N),intent(in)::u
+    integer,intent(in)::N
+    call zsymv('L',N,(1d0,0d0),HamiltonianAbsorb,N,u,1,(0d0,0d0),d,1)
+end subroutine EvolveAbsorb
+
+!x is the vector of grid points
+!Hamiltonian store as a whole NState*size(x) order matrix
+!can be considered as consisting of NState*NState blocks, ij block is NState i x NState j 
+subroutine HamiltonianDVR(x,dx,NState,lx)
+    real*8,dimension(lx),intent(in)::x
+    real*8,intent(in)::dx
+    integer,intent(in)::NState,lx
+    integer::i,j,k,ii,jj,kk,kkk
+    real*8,dimension(lx,lx)::tran
+    Hamiltonian=(0d0,0d0)
+    do i=1,lx
+        do j=1,lx
             if(i==j) then
-                MatrixForm(i,j,2)=0d0
-                MatrixForm(i,j,5)=pisqd3
+                tran(i,j)=pisqd3
             else
                 k=i-j
-                MatrixForm(i,j,2)=1d0/k
-                MatrixForm(i,j,5)=2d0/k**2
+                tran(i,j)=2d0/(k*k)
                 if(mod(k,2)) then
-                    MatrixForm(i,j,2)=-MatrixForm(i,j,2)
-                    MatrixForm(i,j,5)=-MatrixForm(i,j,5)
+                    tran(i,j)=-tran(i,j)
                 end if
             end if
         end do
     end do
-    MatrixForm(:,:,2)=-ci*hbar/dx*MatrixForm(:,:,2)
-    MatrixForm(:,:,5)=hbar**2/dx**2*MatrixForm(:,:,5)
-    forall(i=1:NGrid,j=1:NGrid)
-        MatrixForm(i,j,4)=MatrixForm(i,j,2)*(x(i)+x(j))/2d0
-    end forall
-end subroutine SMDMatrix
-
-!phi(p)=F[psy(x)]
-subroutine Transform2p(psy,phi)
-    complex*16,dimension(NGrid),intent(in)::psy
-    complex*16,dimension(lp0),intent(inout)::phi
-    integer::k,i
-    real*8,dimension(NGrid)::ones
-    complex*16,dimension(NGrid)::temp
-    ones=1d0
-    do k=1,lp0
-        forall(i=1:NGrid)
-            temp(i)=exp(-ci/hbar*p0scan(k)*x(i))*psy(i)
-        end forall
-        phi(k)=dot_product(ones,temp)
+    tran=hbar*hbar/2d0/mass/dx/dx*tran
+    j=1
+    do i=1,NState
+        k=j+lx-1
+        Hamiltonian(j:k,j:k)=tran
+        do ii=1,NState
+            kk=(i-1)*lx
+            kkk=(ii-1)*lx
+            do jj=1,lx
+                kk=kk+1
+                kkk=kkk+1
+                Hamiltonian(kk,kkk)=Hamiltonian(kk,kkk)+potential(x(jj),i,ii)
+            end do
+        end do
+        j=k+1
     end do
-    phi=phi*dx/Sqrt(pim2*hbar)
-end subroutine Transform2p
-
-!p(x,p)=WignerTransform[psy(x)]
-subroutine Transform2Wigner(psy,lx,lk,wigner)
-    integer::lx,lk,k,i,j,width
-    real*8,dimension(lx)::ones
-    real*8,dimension(lx,lk)::wigner
-    complex*16,dimension(lx)::psy,temp
-    ones=1d0
-    do k=1,lk
-        do j=2,lx-1
-            temp=(0d0,0d0)
-            width=min(j,lx-j)-1
-            forall(i=-width:width)
-                temp(i+width+1)=exp(2d0*ci/hbar*p0scan(k)*i*dx)*psy(j+i)*psy(j-i)
-            end forall
-            wigner(j,k)=dot_product(ones,temp)
+end subroutine HamiltonianDVR
+subroutine HamiltonianDVRAbsorb(x,dx,NState,lx)
+    real*8,dimension(lx),intent(in)::x
+    real*8,intent(in)::dx
+    integer,intent(in)::NState,lx
+    integer::i,j,k,ii,jj,kk,kkk
+    real*8,dimension(lx,lx)::tran
+    HamiltonianAbsorb=(0d0,0d0)
+    do i=1,lx
+        do j=1,lx
+            if(i==j) then
+                tran(i,j)=pisqd3
+            else
+                k=i-j
+                tran(i,j)=2d0/(k*k)
+                if(mod(k,2)) then
+                    tran(i,j)=-tran(i,j)
+                end if
+            end if
         end do
     end do
-    wigner=wigner*dx/pi/hbar
-end subroutine Transform2Wigner
+    tran=hbar*hbar/2d0/mass/dx/dx*tran
+    j=1
+    do i=1,NState
+        k=j+lx-1
+        HamiltonianAbsorb(j:k,j:k)=tran
+        do ii=1,NState
+            kk=(i-1)*lx
+            kkk=(ii-1)*lx
+            do jj=1,lx
+                kk=kk+1
+                kkk=kkk+1
+                HamiltonianAbsorb(kk,kkk)=HamiltonianAbsorb(kk,kkk)+AbsorbedPotential(x(jj),i,ii)
+            end do
+        end do
+        j=k+1
+    end do
+end subroutine HamiltonianDVRAbsorb
+
+!AbsorbedPotential_ij(x)
+function AbsorbedPotential(x,i,j)!D. E. Manolopoulos 2002 JCP
+    integer::i,j
+    real*8::x,y
+    complex*16::AbsorbedPotential
+    real*8,parameter::csq=6.87519864356d0!A const Manolopoulos obtained from elliptic integral
+    AbsorbedPotential=potential(x,i,j)
+    if(i==j) then
+        if(x>right) then
+            y=csq*kmins/(pim2**2)*(x-right)**2
+            AbsorbedPotential=AbsorbedPotential-ci*hbar**2*kmins*4d0/mass*((csq+y)/(csq-y)**2-1d0/csq)
+        else if(x<left) then
+            y=csq*kmins/(pim2**2)*(x-left)**2
+            AbsorbedPotential=AbsorbedPotential-ci*hbar**2*kmins*4d0/mass*((csq+y)/(csq-y)**2-1d0/csq)
+        end if
+    end if
+end function AbsorbedPotential
 
 end module DVR

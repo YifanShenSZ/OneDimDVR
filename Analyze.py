@@ -131,7 +131,7 @@ NGrid,dx,lt,NState=Get_ParametersUsed('ParametersUsed.out')
 if(jobtype=='NewTrajectory'):
     x=Get_Grid('x.out')
     t=Get_Grid('t.out')
-    psy=Get_wavefunction('Psy.out',x.shape[0],NState,lt)
+    psy=Get_wavefunction('Psy.out',x.shape[0],NState,t.shape[0])
     Animate_Density(left,right,x,t,psy,NState,title='Coordinate space density',FileName='xDensity')
 elif(jobtype=='TR-p0'):
     k,tran,ref=Get_TR('TR.out',NState)
@@ -175,7 +175,7 @@ elif(jobtype=='SMD'):
 elif(jobtype=='pRepresentation'):
     k=Get_Grid('k.out')
     t=Get_Grid('t.out')
-    phi=Get_wavefunction('Phi.out',k.shape[0],NState,lt)
+    phi=Get_wavefunction('Phi.out',k.shape[0],NState,t.shape[0])
     Animate_Density(p0left,p0right,k,t,phi,NState,title='Momentum space density',xlabel='p [a.u.]',FileName='pDensity')
 elif(jobtype=='WignerRepresentation'):
     x=Get_Grid('x.out')

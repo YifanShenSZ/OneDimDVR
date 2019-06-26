@@ -1,19 +1,19 @@
 This is the main input file for OneDimDVR. Every quantity is in atomic unit
 
 Job type: (NewTrajectory, TR-p0, SMD, pRepresentation, WignerDistribution)
-TR-p0
+NewTrajectory
 Number of electronic state:
 2
 Mass:
-2000
+1836
 Initial average position x0:
--10
+-0.463950899364933
 Left boundary:
--20
+-1
 Right boundary:
-10
-Upper limit of grid spacing dx:
 1
+Upper limit of grid spacing dx:
+0.01
 Upper limit of time step dt:
 1
 (NewTrajectory only) Initial average momentum p0:
@@ -24,11 +24,11 @@ Upper limit of time step dt:
 1.0
 (NewTrajectory only) Is this a scattering problem? (T = yes, F = no) (Absorbing potential is on if T)
 F
-(TR-p0 and pRepresentation only) min p0:
-5
-(TR-p0 and pRepresentation only) max p0:
-20
-(TR-p0 and pRepresentation only) dp0:
-1
+(TR-p0, pRepresentation, WignerDistribution only) min p:
+-10
+(TR-p0, pRepresentation, WignerDistribution only) max p:
+10
+(TR-p0, pRepresentation, WignerDistribution only) dp:
+0.1
 Do you want advanced input? (T = yes, F = no)
 F
