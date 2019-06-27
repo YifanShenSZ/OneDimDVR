@@ -72,10 +72,11 @@ def Get_SMD(source,NState,lt,nSMD):
 jobtype,NState,mass,x0,left,right,maxdx,maxdt,p0,TotalTime,dt,Scatter,pleft,pright,dp,skipx=Get_input('OneDimDVR.in')
 if(jobtype=='NewTrajectory'):
     x=General.Get_Array('x.out'); t=General.Get_Array('t.out')
-    psy=Get_wavefunction('Psy.out',x.shape[0],NState,t.shape[0])
-    den=numpy.multiply(numpy.conj(psy),psy)
-    if(NState>1): Visualization.Animate2D_MultiLevel(t,x,den,title='Coordinate space density',xlabel='x [a.u.]',ylabel='density',save=True,FileName='xDensity',show=False)
-    else: Visualization.Animate2D(t,x,den[:,0,:],title='Coordinate space density',xlabel='x [a.u.]',ylabel='density',save=True,FileName='xDensity',show=False)
+    psy=Get_wavefunction('Psy.out',x.shape[0],NState,t.shape[0]); den=numpy.multiply(numpy.conj(psy),psy)
+    if(NState>1): Visualization.Animate2D_MultiLevel(t,x,den,\
+        title='Coordinate space density',xlabel='x [a.u.]',ylabel='density',save=True,FileName='xDensity',show=False)
+    else: Visualization.Animate2D(t,x,den[:,0,:],\
+        title='Coordinate space density',xlabel='x [a.u.]',ylabel='density',save=True,FileName='xDensity',show=False)
 elif(jobtype=='TR-p0'):
     p,tran,ref=Get_TR('TR.out',NState)
     with open('TR.txt','w') as f:
@@ -107,7 +108,7 @@ elif(jobtype=='SMD'):
     with open('SMD.txt','w') as f:
         print('t/a.u.',end='\t',file=f)
         for i in range(NState):
-            print('q'+str(i)+'/a.u.','p'+str(i)+'/a.u.','sigmaq'+str(i)+'/a.u.','rho'+str(i),'sigmap'+str(i)+'/a.u.','pop'+str(i),sep='\t',end='\t',file=f)
+            print('q'+str(i)+'/a.u.','p'+str(i)+'/a.u.','sigmaq'+str(i)+'/a.u.','covariance'+str(i),'sigmap'+str(i)+'/a.u.','population'+str(i),sep='\t',end='\t',file=f)
         print(file=f)
         for i in range(t.shape[0]):
             print(t[i],end='\t',file=f)
@@ -117,8 +118,7 @@ elif(jobtype=='SMD'):
             print(file=f)
 elif(jobtype=='pRepresentation'):
     p=General.Get_Array('p.out'); t=General.Get_Array('t.out')
-    phi=Get_wavefunction('Phi.out',p.shape[0],NState,t.shape[0])
-    den=numpy.multiply(numpy.conj(phi),phi)
+    phi=Get_wavefunction('Phi.out',p.shape[0],NState,t.shape[0]); den=numpy.multiply(numpy.conj(phi),phi)
     if(NState>1): Visualization.Animate2D_MultiLevel(t,p,den,\
         title='Momentum space density',xlabel='p [a.u.]',ylabel='density',save=True,FileName='pDensity',show=False)
     else: Visualization.Animate2D(t,p,den[:,0,:],\
