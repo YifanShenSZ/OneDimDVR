@@ -5,7 +5,7 @@ module DVR
 !Parameter
     logical::AutoStep=.true.!Whether determine dx and dt automatically
     integer::maxtotallength=2147483647!To prevent too slow determination of auto dt
-    real*8::minpopdev=1d-6,&!Stop trajectory evolution when population no longer equals to 1
+    real*8::maxpopdev=1d-6,&!Stop trajectory evolution when population no longer equals to 1
         minpop=1d-2!Stop transmission & reflection calculation when all population are absorbed
                    !Note: absorbing potential can only absorb 99%, 1% will be reflected by boundary
 
@@ -28,26 +28,21 @@ subroutine NewTrajectory()
     else
         call Solve()
     end if
-    allocate(t(lt))!Output
-    forall(i=1:lt)
-        t(i)=(i-1)*OutputInterval
-    end forall
-    open(unit=99,file='x.out',status='replace')
+    open(unit=99,file='x.out',status='replace')!Output
         do i=NAbsorbGrid+1,NAbsorbGrid+NGrid
             write(99,*)x(i)
         end do
     close(99)
     open(unit=99,file='t.out',status='replace')
         do i=1,lt
-            write(99,*)t(i)
+            write(99,*)dble(i-1)*OutputInterval
         end do
     close(99)
     open(unit=99,file='Psy.out',status='replace')
         do k=1,lt
             do j=1,NState
                 do i=NAbsorbGrid+1,NAbsorbGrid+NGrid
-                    write(99,*)real(psy(i,j,k))
-                    write(99,*)imag(psy(i,j,k))
+                    write(99,*)real(psy(i,j,k)); write(99,*)imag(psy(i,j,k))
                 end do
             end do
         end do
@@ -73,7 +68,8 @@ subroutine TR_p0()
         write(*,*)'p0 =',p0
         call scan_solve(Transmission(:,i),Reflection(:,i))
     end do
-    open(unit=99,file='TR.out',status='replace')!Output
+    !Output
+    open(unit=99,file='TR.out',status='replace')
         do i=1,lp0
             write(99,*)p0scan(i)
             do j=1,NState
@@ -219,7 +215,7 @@ subroutine SolveAbsorb()!H with absorbing potential is no longer Hermitian, must
                     end forall
                 end if
             !Check whether the population has been absorbed too much
-                if(abs(dot_product(psyevolvenew,psyevolvenew)*dx-1d0)>minpopdev) then
+                if(abs(dot_product(psyevolvenew,psyevolvenew)*dx-1d0)>maxpopdev) then
                     lt=1+i/OutputFreq
                     exit
                 end if

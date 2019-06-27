@@ -15,7 +15,7 @@ module Analyzation
     end type SMD4PArray
 
 !Global variable
-    integer::lp
+    integer::lp,lwx
     real*8,allocatable,dimension(:)::p
     real*8,allocatable,dimension(:,:,:,:)::wigner
     complex*16,allocatable,dimension(:,:,:)::phi
@@ -31,8 +31,8 @@ subroutine ComputeSMD()
     type(SMD4PArray),allocatable,dimension(:)::SMD
     !prepare
         nSMD=SMDOrder*(SMDOrder+3)/2
-        allocate(MatrixForm(NGrid,NGrid,nSMD))
-        call SMDMatrix(NGrid,nSMD,MatrixForm)
+        allocate(MatrixForm(lx,lx,nSMD))
+        call SMDMatrix(lx,nSMD,MatrixForm)
         allocate(fct(SMDOrder+1))
         do i=0,SMDOrder
             fct(i+1)=dFactorial(i)
@@ -111,19 +111,19 @@ end subroutine ComputeSMD
 !Get the matrix form of x, p, xx, xp, pp (Higher order p terms have not been derived)
 !Note that DVR can't be considered as quantum Hilbert space:
 !    < A(t) > = dx * < psy(:,t) | A | psy(:,t) >
-subroutine SMDMatrix(NGrid,nSMD,MatrixForm)
-    integer,intent(in)::NGrid,nSMD
-    complex*16,dimension(NGrid,NGrid,nSMD),intent(inout)::MatrixForm
+subroutine SMDMatrix(lx,nSMD,MatrixForm)
+    integer,intent(in)::lx,nSMD
+    complex*16,dimension(lx,lx,nSMD),intent(inout)::MatrixForm
     integer::i,j,k
     MatrixForm=(0d0,0d0)
     do i=1,SMDOrder
         k=(i-1)*(i+2)/2+1
-        forall(j=1:NGrid)
+        forall(j=1:lx)
             MatrixForm(j,j,k)=x(j)**i
         end forall
     end do
-    do i=1,NGrid
-        do j=1,NGrid
+    do i=1,lx
+        do j=1,lx
             if(i==j) then
                 MatrixForm(i,j,2)=0d0
                 MatrixForm(i,j,5)=pisqd3
@@ -140,25 +140,21 @@ subroutine SMDMatrix(NGrid,nSMD,MatrixForm)
     end do
     MatrixForm(:,:,2)=-ci*hbar/dx*MatrixForm(:,:,2)
     MatrixForm(:,:,5)=hbar**2/dx**2*MatrixForm(:,:,5)
-    forall(i=1:NGrid,j=1:NGrid)
+    forall(i=1:lx,j=1:lx)
         MatrixForm(i,j,4)=MatrixForm(i,j,2)*(x(i)+x(j))/2d0
     end forall
 end subroutine SMDMatrix
 
 subroutine pRepresentation()
     integer::i,j,k
-    lp=floor((pright-pleft)/dp)+1!Prepare
-    allocate(p(lp))
-    forall(i=1:lp)
-        p(i)=pleft+(i-1)*dp
-    end forall
+    lp=floor((pright-pleft)/dp)+1; allocate(p(lp)); forall(i=1:lp); p(i)=pleft+(i-1)*dp; end forall
     allocate(phi(lp,NState,lt))
     do j=1,lt
         do i=1,NState
-            call Transform2p(psy(:,i,j),phi(:,i,j))
+            call psy2phi(psy(:,i,j),lx,phi(:,i,j),lp)
         end do
     end do
-    open(unit=99,file='k.out',status='replace')!Output
+    open(unit=99,file='p.out',status='replace')!Output
         do i=1,lp
             write(99,*)p(i)
         end do
@@ -175,39 +171,45 @@ subroutine pRepresentation()
     close(99)
 end subroutine pRepresentation
 
-!phi(p) = Fourier[psy(x)]
-subroutine Transform2p(psy,phi)
-    complex*16,dimension(NGrid),intent(in)::psy
+subroutine psy2phi(psy,lx,phi,lp)!phi(p) = FourierTransform[psy(x)]
+    integer,intent(in)::lx,lp
+    complex*16,dimension(lx),intent(in)::psy
     complex*16,dimension(lp),intent(inout)::phi
     integer::k,i
     do k=1,lp
         phi(k)=exp(-ci/hbar*p(k)*x(1))*psy(1)
-        do i=2,NGrid
+        do i=2,lx
             phi(k)=phi(k)+exp(-ci/hbar*p(k)*x(i))*psy(i)
         end do
     end do
     phi=phi*dx/sqrtpim2/dSqrt(hbar)
-end subroutine Transform2p
+end subroutine psy2phi
 
 subroutine WignerDistribution()
     integer::i,j,k,l
-    lp=floor((pright-pleft)/dp)+1!Prepare
-    allocate(p(lp))
-    forall(i=1:lp)
-        p(i)=pleft+(i-1)*dp
-    end forall
-    allocate(wigner(NGrid,lp,NState,lt))
-    wigner=0d0
+    lp=floor((pright-pleft)/dp)+1; allocate(p(lp)); forall(i=1:lp); p(i)=pleft+(i-1)*dp; end forall
+    if(mod(lx,1+skipx)==0) then
+        lwx=lx/(1+skipx)
+    else
+        lwx=lx/(1+skipx)+1
+    end if
+    allocate(wigner(lwx,lp,NState,lt)); wigner=0d0
     do k=1,lt
         do i=1,NState
-            call Transform2Wigner(psy(:,i,k),NGrid,NGrid,wigner(:,:,i,k))
+            call psy2Wigner(psy(:,i,k),lx,wigner(:,:,i,k),lwx,lp)
         end do
     end do
-    open(unit=99,file='Wigner.out',status='replace')!Output
+    open(unit=99,file='Wigner_x.out',status='replace')!Output
+        do i=1,lx,1+skipx; write(99,*)x(i); end do
+    close(99)
+    open(unit=99,file='Wigner_p.out',status='replace')
+        do i=1,lp; write(99,*)p(i); end do
+    close(99)
+    open(unit=99,file='Wigner.out',status='replace')
         do i=1,lt
             do j=1,NState
                 do k=1,lp
-                    do l=1,NGrid
+                    do l=1,lwx
                         write(99,*)wigner(l,k,j,i)
                     end do
                 end do
@@ -216,24 +218,20 @@ subroutine WignerDistribution()
     close(99)
 end subroutine WignerDistribution
 
-!p(x,p) = WignerTransform[psy(x)]
-subroutine Transform2Wigner(psy,lx,lk,wigner)
-    integer::lx,lk,k,i,j,width
-    real*8,dimension(lx)::ones
-    real*8,dimension(lx,lk)::wigner
-    complex*16,dimension(lx)::psy,temp
-    ones=1d0
-    do k=1,lk
-        do j=2,lx-1
-            temp=(0d0,0d0)
-            width=min(j,lx-j)-1
-            forall(i=-width:width)
-                temp(i+width+1)=exp(2d0*ci/hbar*p(k)*i*dx)*psy(j+i)*psy(j-i)
-            end forall
-            wigner(j,k)=dot_product(ones,temp)
+subroutine psy2Wigner(psy,lx,wigner,lwx,lp)!rho(x,p) = WignerTransform[psy(x)]
+    integer,intent(in)::lx,lwx,lp
+    complex*16,dimension(lx),intent(in)::psy
+    real*8,dimension(lwx,lp),intent(out)::wigner
+    integer::position,i,j,k
+    do i=1,lp
+        do j=1,lwx
+            position=(j-1)*(1+skipx)+1; wigner(j,i)=0d0
+            do k=max(1-position,position-lx),min(lx-position,position-1)
+                wigner(j,i)=wigner(j,i)+exp(2d0*ci/hbar*p(i)*dble(k)*dx)*conjg(psy(position+k))*psy(position-k)
+            end do
         end do
     end do
     wigner=wigner*dx/pi/hbar
-end subroutine Transform2Wigner
+end subroutine psy2Wigner
 
 end module Analyzation

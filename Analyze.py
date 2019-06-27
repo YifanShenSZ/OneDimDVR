@@ -10,46 +10,18 @@ from PythonLibrary import *
 
 ''' Auxiliary routine '''
 def Get_input(source):
-    with open(source,'r') as f:
-        data=f.readlines()
-    jobtype=str(data[3].strip())
-    NState=int(data[5].strip())
-    mass=float(data[7].strip())
-    x0=float(data[9].strip())
-    TotalTime=float(data[11].strip())
-    left=float(data[13].strip())
-    right=float(data[15].strip())
-    maxdx=float(data[17].strip())
-    maxdt=float(data[19].strip())
-    p0=float(data[21].strip())
-    dt=float(data[23].strip())
-    Absorbed=bool(data[25].strip())
-    p0left=float(data[27].strip())
-    p0right=float(data[29].strip())
-    dp0=float(data[31].strip())
-    return jobtype,NState,mass,x0,TotalTime,left,right,maxdx,maxdt,p0,dt,Absorbed,p0left,p0right,dp0
-
-def Get_ParametersUsed(source):
-    with open(source,'r') as f:
-        data=f.readlines()
-    NGrid=int(data[0].strip())
-    dx=float(data[1].strip())
-    lt=int(data[2].strip())
-    NState=int(data[3].strip())
-    return NGrid,dx,lt,NState
-
-def Get_Grid(source):
-    with open(source,'r') as f:
-        data=f.readlines()
-    ls=len(data)
-    s=numpy.empty(ls)
-    for i in range(ls):
-        s[i]=float(data[i])
-    return s
+    with open(source,'r') as f: data=f.readlines()
+    jobtype=str(data[3].strip()); NState=int(data[5].strip()); mass=float(data[7].strip())
+    x0=float(data[9].strip()); left=float(data[11].strip()); right=float(data[13].strip())
+    maxdx=float(data[15].strip()); maxdt=float(data[17].strip())
+    p0=float(data[19].strip()); TotalTime=float(data[21].strip()); dt=float(data[23].strip())
+    Scatter=bool(data[25].strip())
+    pleft=float(data[27].strip()); pright=float(data[29].strip()); dp=float(data[31].strip())
+    skipx=int(data[33].strip())
+    return jobtype,NState,mass,x0,left,right,maxdx,maxdt,p0,TotalTime,dt,Scatter,pleft,pright,dp,skipx
 
 def Get_wavefunction(source,lx,NState,lt):
-    with open(source,'r') as f:
-        data=f.readlines()
+    with open(source,'r') as f: data=f.readlines()
     psy=numpy.empty((lx,NState,lt),dtype=complex)
     index=0
     for i in range(lt):
@@ -60,39 +32,32 @@ def Get_wavefunction(source,lx,NState,lt):
     return psy
 
 def Get_TR(source,NState):
-    with open(source,'r') as f:
-        data=f.readlines()
-    ld=len(data)
-    lk=int(ld/(1+2*NState))
-    k=numpy.empty(lk)
-    tran=numpy.empty((lk,NState))
-    ref=numpy.empty((lk,NState))
+    with open(source,'r') as f: data=f.readlines()
+    lp=int(len(data)/(1+2*NState)); p=numpy.empty(lp)
+    tran=numpy.empty((lp,NState)); ref=numpy.empty((lp,NState))
     index=0
-    for i in range(lk):
-        k[i]=float(data[index].strip())
+    for i in range(lp):
+        p[i]=float(data[index].strip())
         index=index+1
         for j in range(NState):
-            tran[i,j]=float(data[index].strip())
-            ref[i,j]=float(data[index+1].strip())
+            tran[i,j]=float(data[index].strip()); ref[i,j]=float(data[index+1].strip())
             index=index+2
-    return k,tran,ref
+    return p,tran,ref
 
-def Get_Wigner(source,lx,lk,NState,lt):
-    with open(source,'r') as f:
-        data=f.readlines()
-    wigner=numpy.empty((lx,lk,NState,lt))
+def Get_Wigner(source,lwx,lp,NState,lt):
+    with open(source,'r') as f: data=f.readlines()
+    wigner=numpy.empty((lwx,lp,NState,lt))
     index=0
     for i in range(lt):
         for j in range(NState):
-            for k in range(lk):
-                for l in range(lx):
+            for k in range(lp):
+                for l in range(lwx):
                     wigner[l,k,j,i]=float(data[index].strip())
                     index=index+1
     return wigner
 
 def Get_SMD(source,NState,lt,nSMD):
-    with open(source,'r') as f:
-        data=f.readlines()
+    with open(source,'r') as f: data=f.readlines()
     SMD=numpy.empty((nSMD,NState,lt))
     index=0
     for ii in range(lt):
@@ -102,47 +67,25 @@ def Get_SMD(source,NState,lt,nSMD):
                 index=index+1
     return SMD
 
-def Animate_Density(left,right,x,t,psy,NState,speed=1.0,title='Density',xlabel='x [a.u.]',ylabel='Density [a.u.]',FileName='Density'):
-    den=numpy.multiply(numpy.conj(psy),psy)
-    fig,ax=plt.subplots(NState,1,squeeze=False)
-    line=[]
-    for j in range(NState):
-       temp, =ax[j,0].plot(x,den[:,NState-1-j,0])
-       ax[j,0].set_title(title)
-       ax[j,0].set_xlim(left,right)
-       ax[j,0].set_xlabel(xlabel)
-       ax[j,0].set_ylim(0,numpy.amax(den))
-       ax[j,0].set_ylabel(ylabel)
-       line.append(temp)
-    def animate(i):
-        for j in range(NState):
-            line[j].set_ydata(den[:,NState-1-j,i])
-        return line
-    #animate each a.u. time as 0.01s
-    ani=anm.FuncAnimation(fig,animate,t.shape[0],interval=40.0/speed,blit=True)
-    ani.save(FileName+'.gif')
-    plt.show()
-
 ''' Do the job '''
 #Read input
-jobtype,NState,mass,x0,TotalTime,left,right,maxdx,maxdt,p0,dt,Absorbed,p0left,p0right,dp0=Get_input('OneDimDVR.in')
-#Read parameters used in DVR evolution
-NGrid,dx,lt,NState=Get_ParametersUsed('ParametersUsed.out')
+jobtype,NState,mass,x0,left,right,maxdx,maxdt,p0,TotalTime,dt,Scatter,pleft,pright,dp,skipx=Get_input('OneDimDVR.in')
 if(jobtype=='NewTrajectory'):
-    x=Get_Grid('x.out')
-    t=Get_Grid('t.out')
+    x=General.Get_Array('x.out'); t=General.Get_Array('t.out')
     psy=Get_wavefunction('Psy.out',x.shape[0],NState,t.shape[0])
-    Animate_Density(left,right,x,t,psy,NState,title='Coordinate space density',FileName='xDensity')
+    den=numpy.multiply(numpy.conj(psy),psy)
+    if(NState>1): Visualization.Animate2D_MultiLevel(t,x,den,title='Coordinate space density',xlabel='x [a.u.]',ylabel='density',save=True,FileName='xDensity',show=False)
+    else: Visualization.Animate2D(t,x,den[:,0,:],title='Coordinate space density',xlabel='x [a.u.]',ylabel='density',save=True,FileName='xDensity',show=False)
 elif(jobtype=='TR-p0'):
-    k,tran,ref=Get_TR('TR.out',NState)
+    p,tran,ref=Get_TR('TR.out',NState)
     with open('TR.txt','w') as f:
-        print('k',end='\t',file=f)
+        print('p',end='\t',file=f)
         for i in range(NState):
             print('Transmission_'+str(i),end='\t',file=f)
             print('Reflection_'+str(i),end='\t',file=f)
         print(file=f)
-        for i in range(k.shape[0]):
-            print(k[i],end='\t',file=f)
+        for i in range(p.shape[0]):
+            print(p[i],end='\t',file=f)
             for j in range(NState):
                 print(tran[i,j],end='\t',file=f)
                 print(ref[i,j],end='\t',file=f)
@@ -150,37 +93,52 @@ elif(jobtype=='TR-p0'):
     for i in range(NState):
         for j in range(2):
             plt.subplot(NState,2,2*i+1)
-            plt.plot(k,tran[:,i])
+            plt.plot(p,tran[:,i])
             plt.title('Transmission on state'+str(i))
             plt.subplot(NState,2,2*i+2)
-            plt.plot(k,ref[:,i])
+            plt.plot(p,ref[:,i])
             plt.title('Reflection on state'+str(i))
     plt.show()
 elif(jobtype=='SMD'):
+    t=General.Get_Array('t.out')
     SMDOrder=2#Currently only support 2
-    t=Get_Grid('t.out')
     nSMD=int(SMDOrder*(SMDOrder+3)/2)+1
-    SMD=Get_SMD('SMD.out',NState,lt,nSMD)
+    SMD=Get_SMD('SMD.out',NState,t.shape[0],nSMD)
     with open('SMD.txt','w') as f:
         print('t/a.u.',end='\t',file=f)
         for i in range(NState):
             print('q'+str(i)+'/a.u.','p'+str(i)+'/a.u.','sigmaq'+str(i)+'/a.u.','rho'+str(i),'sigmap'+str(i)+'/a.u.','pop'+str(i),sep='\t',end='\t',file=f)
         print(file=f)
-        for i in range(lt):
+        for i in range(t.shape[0]):
             print(t[i],end='\t',file=f)
             for k in range(NState):
                 for j in range(nSMD):
                     print(SMD[j,k,i],end='\t',file=f)
             print(file=f)
 elif(jobtype=='pRepresentation'):
-    k=Get_Grid('k.out')
-    t=Get_Grid('t.out')
-    phi=Get_wavefunction('Phi.out',k.shape[0],NState,t.shape[0])
-    Animate_Density(p0left,p0right,k,t,phi,NState,title='Momentum space density',xlabel='p [a.u.]',FileName='pDensity')
-elif(jobtype=='WignerRepresentation'):
-    x=Get_Grid('x.out')
-    k=Get_Grid('k.out')
-    t=Get_Grid('t.out')
-    wigner=Get_Wigner('Wigner.out',NGrid,NGrid,NState,lt)
+    p=General.Get_Array('p.out'); t=General.Get_Array('t.out')
+    phi=Get_wavefunction('Phi.out',p.shape[0],NState,t.shape[0])
+    den=numpy.multiply(numpy.conj(phi),phi)
+    if(NState>1): Visualization.Animate2D_MultiLevel(t,p,den,\
+        title='Momentum space density',xlabel='p [a.u.]',ylabel='density',save=True,FileName='pDensity',show=False)
+    else: Visualization.Animate2D(t,p,den[:,0,:],\
+        title='Momentum space density',xlabel='p [a.u.]',ylabel='density',save=True,FileName='pDensity',show=False)
+elif(jobtype=='WignerDistribution'):
+    x=General.Get_Array('Wigner_x.out'); p=General.Get_Array('Wigner_p.out'); t=General.Get_Array('t.out')
+    wigner=Get_Wigner('Wigner.out',x.shape[0],p.shape[0],NState,t.shape[0])
+    [xtemp,ptemp]=numpy.meshgrid(x,p); Xtemp=xtemp.ravel(); Ptemp=ptemp.ravel()
+    X=numpy.empty((Xtemp.shape[0],t.shape[0])); P=numpy.empty((Ptemp.shape[0],t.shape[0]))
+    for i in range(t.shape[0]):
+        X[:,i]=Xtemp; P[:,i]=Ptemp
+    WIGNER=numpy.empty((int(x.shape[0]*p.shape[0]),NState,t.shape[0]))
+    for k in range(t.shape[0]):
+        for j in range(NState):
+            index=0
+            for i in range(p.shape[0]):
+                WIGNER[index:index+x.shape[0],j,k]=wigner[:,i,j,k]
+                index=index+x.shape[0]
+    for j in range(NState): Visualization.Animate3DSurface(t,X,P,WIGNER[:,j,:],\
+        title='Wigner distribution on state '+str(j),xlabel='x [a.u.]',ylabel='p [a.u.]',zlabel='density',\
+        colormap='seismic',save=True,FileName='Wigner'+str(j),show=False)
 else:
     print('Unkown job type?')

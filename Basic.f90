@@ -15,6 +15,7 @@ module Basic
     logical::ScatteringProblem
     !TR-p0, pRepresentation, WignerDistribution only
     real*8::pleft,pright,dp
+    integer::skipx!WignerDistribution only
 
 !Global variable
     real*8::d,dt,dx,kmin,kmax,kmins
