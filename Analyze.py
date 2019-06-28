@@ -1,8 +1,5 @@
 ''' Import library '''
-import sys# Standard library
-import numpy
-import matplotlib.pyplot as plt
-import matplotlib.animation as anm
+import sys; import numpy
 #sys.path.append('/home-4/yshen57@jhu.edu/Library/Python-Library')# My library path on MARCC
 sys.path.append('C:\\Python-Library')# My library path on my Lenovo-E540
 #sys.path.append('C:\\Users\\56402\\OneDrive\\Research\\Source\\Python')# My library path on my surface pro
@@ -140,5 +137,4 @@ elif(jobtype=='WignerDistribution'):
     for j in range(NState): Visualization.Animate3DSurface(t,X,P,WIGNER[:,j,:],\
         title='Wigner distribution on state '+str(j),xlabel='x [a.u.]',ylabel='p [a.u.]',zlabel='density',\
         colormap='seismic',save=True,FileName='Wigner'+str(j),show=False)
-else:
-    print('Unkown job type?')
+else: print('Unkown job type?')
