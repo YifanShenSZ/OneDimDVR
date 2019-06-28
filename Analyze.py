@@ -106,7 +106,7 @@ elif(jobtype=='SMD'):
     with open('SMD.txt','w') as f:
         print('t/a.u.',end='\t',file=f)
         for i in range(NState):
-            print('q'+str(i)+'/a.u.','p'+str(i)+'/a.u.','sigmaq'+str(i)+'/a.u.','covariance'+str(i),'sigmap'+str(i)+'/a.u.','population'+str(i),sep='\t',end='\t',file=f)
+            print('q'+str(i)+'/a.u.','p'+str(i)+'/a.u.','sigmaq'+str(i)+'/a.u.','correlation'+str(i),'sigmap'+str(i)+'/a.u.','population'+str(i),sep='\t',end='\t',file=f)
         print(file=f)
         for i in range(t.shape[0]):
             print(t[i],end='\t',file=f)

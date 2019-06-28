@@ -22,7 +22,7 @@ module Analyzation
 
 contains
 subroutine ComputeSMD()
-    integer::i,j,k,m,n,iorder,jorder,mm,nn,nSMD
+    integer::i,j,k,m,n,mm,nn,nSMD
     real*8::xave,pave,sigmax,sigmap
     real*8,allocatable,dimension(:)::fct
     real*8,allocatable,dimension(:,:)::pop
@@ -33,76 +33,73 @@ subroutine ComputeSMD()
         nSMD=SMDOrder*(SMDOrder+3)/2
         allocate(MatrixForm(lx,lx,nSMD))
         call SMDMatrix(lx,nSMD,MatrixForm)
-        allocate(fct(SMDOrder+1))
+        allocate(fct(0:SMDOrder))
         do i=0,SMDOrder
-            fct(i+1)=dFactorial(i)
+            fct(i)=dFactorial(i)
         end do
         allocate(SMDTemp(SMDOrder))
         do i=1,SMDOrder
-            allocate(SMDTemp(i).Array(i+1))
+            allocate(SMDTemp(i).Array(0:i))
         end do
         allocate(pop(NState,lt))
         allocate(SMD(lt))
         do i=1,lt
             allocate(SMD(i).NState(NState))
             do j=1,NState
-                allocate(SMD(i).NState(j).Order(SMDOrder+1))
+                allocate(SMD(i).NState(j).Order(SMDOrder))
                 do k=1,SMDOrder
-                    allocate(SMD(i).NState(j).Order(k).Array(k+1))
+                    allocate(SMD(i).NState(j).Order(k).Array(0:k))
                 end do
             end do
         end do
     do k=1,lt
         do j=1,NState
             pop(j,k)=dot_product(psy(:,j,k),psy(:,j,k))*dx
-            i=1
-            do iorder=1,SMDOrder
-                do jorder=1,iorder+1
-                    SMD(k).NState(j).Order(iorder).Array(jorder)=dot_product(psy(:,j,k),matmul(matrixform(:,:,i),psy(:,j,k)))*dx
-                    i=i+1
+            m=1
+            do i=1,SMDOrder
+                do n=0,i
+                    SMD(k).NState(j).Order(i).Array(n)=dot_product(psy(:,j,k),matmul(matrixform(:,:,m),psy(:,j,k)))*dx
+                    m=m+1
                 end do
             end do
-            !transform to dimensionless central moments
-                xave=SMD(k).NState(j).order(1).Array(1)/pop(j,k)
-                pave=SMD(k).NState(j).order(1).Array(2)/pop(j,k)
-                sigmax=Sqrt(SMD(k).NState(j).order(2).Array(1)/pop(j,k)-xave**2)
-                sigmap=Sqrt(SMD(k).NState(j).order(2).Array(3)/pop(j,k)-pave**2)
-                SMD(k).NState(j).order(2).Array(1)=sigmax
-                SMD(k).NState(j).order(2).Array(3)=sigmap
-                SMD(k).NState(j).order(2).Array(2)=(SMD(k).NState(j).order(2).Array(2)/pop(j,k)-xave*pave)/sigmax/sigmap
-                do iorder=3,SMDOrder
-                    do jorder=1,iorder+1
-                        m=iorder-jorder+1
-                        n=jorder-1
-                        SMDTemp(iorder).Array(jorder)=xave**m*pave**n
-                        do nn=1,n
-                            SMDTemp(iorder).Array(jorder)=SMDTemp(iorder).Array(jorder)+dCombination(n,nn)*xave**m*pave**(n-nn)*SMD(k).NState(j).order(nn).Array(nn+1)
-                        end do
-                        do mm=1,m
-                            do nn=0,n
-                                SMDTemp(iorder).Array(jorder)=SMDTemp(iorder).Array(jorder)+dCombination(m,mm)*dCombination(n,nn)*xave**(m-mm)*pave**(n-nn)*SMD(k).NState(j).order(mm+nn).Array(nn+1)
-                            end do
+            !x, p, xx, xp, pp have been obtained, transform to dimensionless central moments
+            xave=SMD(k).NState(j).order(1).Array(0)/pop(j,k); SMD(k).NState(j).order(1).Array(0)=xave
+            pave=SMD(k).NState(j).order(1).Array(1)/pop(j,k); SMD(k).NState(j).order(1).Array(1)=pave
+            sigmax=Sqrt(SMD(k).NState(j).order(2).Array(0)/pop(j,k)-xave**2); SMD(k).NState(j).order(2).Array(0)=sigmax
+            sigmap=Sqrt(SMD(k).NState(j).order(2).Array(2)/pop(j,k)-pave**2); SMD(k).NState(j).order(2).Array(2)=sigmap
+            SMD(k).NState(j).order(2).Array(1)=(SMD(k).NState(j).order(2).Array(1)/pop(j,k)-xave*pave)/sigmax/sigmap
+            do i=3,SMDOrder
+                do n=0,i
+                    m=i-n
+                    SMDTemp(i).Array(n)=xave**m*pave**n
+                    do nn=1,n
+                        SMDTemp(i).Array(n)=SMDTemp(i).Array(n)+dCombination(n,nn)*xave**m*pave**(n-nn)*SMD(k).NState(j).order(nn).Array(nn)
+                    end do
+                    do mm=1,m
+                        do nn=0,n
+                            SMDTemp(i).Array(n)=SMDTemp(i).Array(n)+dCombination(m,mm)*dCombination(n,nn)*xave**(m-mm)*pave**(n-nn)*SMD(k).NState(j).order(mm+nn).Array(nn)
                         end do
                     end do
                 end do
-                do iorder=3,SMDOrder
-                    do jorder=1,iorder+1
-                        m=iorder-jorder+1
-                        SMD(k).NState(j).order(iorder).Array(jorder)=SMDTemp(iorder).Array(jorder)/sigmax**m/sigmap**n/fct(m+1)/fct(jorder)
-                    end do
-                    SMD(k).NState(j).order(iorder).Array=SMD(k).NState(j).order(iorder).Array/pop(j,k)
+            end do
+            do i=3,SMDOrder
+                do n=0,i
+                    m=i-n
+                    SMD(k).NState(j).order(i).Array(n)=SMDTemp(i).Array(n)/sigmax**m/sigmap**n/fct(m)/fct(n)
                 end do
+                SMD(k).NState(j).order(i).Array=SMD(k).NState(j).order(i).Array/pop(j,k)
+            end do
         end do
     end do
     open(unit=99,file='SMD.out',status='replace')!output
-        do i=1,lt
+        do k=1,lt
             do j=1,NState
-                do iorder=1,SMDOrder
-                    do jorder=1,iorder+1
-                        write(99,*)SMD(i).NState(j).order(iorder).Array(jorder)
+                do i=1,SMDOrder
+                    do n=0,i
+                        write(99,*)SMD(k).NState(j).order(i).Array(n)
                     end do
                 end do
-                write(99,*)pop(j,i)
+                write(99,*)pop(j,k)
             end do
         end do
     close(99)
