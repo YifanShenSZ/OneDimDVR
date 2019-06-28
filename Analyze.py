@@ -1,6 +1,6 @@
 ''' Import library '''
 import sys; import numpy
-import matplotlib.pyplot as plt; import matplotlib.animation as anm
+import matplotlib.pyplot as plt
 #sys.path.append('/home-4/yshen57@jhu.edu/Library/Python-Library')# My library path on MARCC
 sys.path.append('C:\\Python-Library')# My library path on my Lenovo-E540
 #sys.path.append('C:\\Users\\56402\\OneDrive\\Research\\Source\\Python')# My library path on my surface pro
