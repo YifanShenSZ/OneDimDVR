@@ -1,28 +1,26 @@
 # OneDimDVR
 Numerically solve the time dependent schrodinger equation by discrete variable representation method
 
-This is a special version for 1 dimensional problem
+This is a specialized version for 1 dimensional problems
 
-Supported job types:
-1. NewTrajectory
-* Propagate wavefunction based on user specified initial condition, and save the trajectory
-2. TR-p0
-* Compute transmission and reflection on each state respect to different initial momentum
-3. pRepresentation
-* Convert an old trajectory (in coordinate representation) to momemtum representation
-4. WignerDistribution
-* Convert an old trajectory to phase space
-5. SMD
-* Calculate SMD quantities (currently up to 2nd order) based on an old trajectory
+## Link to user routines
+OneDimDVR requires a several user routines to run:
+1. The diabatic surfaces
+2. The initial wave function
 
-Analyze.py provides visualization for each type of job. Just run it directly after OneDimDVR.exe finishes
+These routines should be provided in modules `libHd` and `libwfn` in `libHd.f90` and `libwfn.f90` with a standard interface:
+* `subroutine initialize_libHd()`
+* `subroutine compute_Hd(q, H)`
+* `subroutine initialize_libwfn()`
+* `subroutine init_wfn(q, psy)`
 
-Modify Basic.f90 for different initial wave function and potential
+Linking by source (`libHd.f90` and `libwfn.f90`), static library (`libHd.a` and `libwfn.a`), dynamic library (`libHd.so` and `libwfn.so`) are all possible through setting the `link_type` variable in `makefile` to `source`, `static`, `dynamic`
 
-Dependency:
-* My Fortran-Library, as written in MyLib of makefile
-* My Python-Library, as written in Import library section of Analyze.py
+The user files mentioned above should be in a same directory, whose path should be passed to `make` through the `usr_dir` variable in `makefile`
 
-Reference:
+## Dependency
+* My Fortran-Library, as written in `FL_dir` variable in `makefile`
+
+## Reference
 > 1. W. H. Miller 1992 J. Chem. Phys.
 > 2. D. E. Manolopoulos 2002 J. Chem. Phys.
