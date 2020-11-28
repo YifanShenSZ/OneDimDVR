@@ -1,16 +1,37 @@
 # OneDimDVR
 Numerically solve the time dependent schrodinger equation by discrete variable representation method
 
-This is a specialized version for 1 dimensional problems
+This is a specialized version for 1 dimensional systems
+
+## Featured utilities
+bound: `OneDimDVR-boud.exe`
+* Specialized for bound systems
+* Outputs wave function
+
+scatter: `OneDimDVR-scatter.exe`
+* Specialized for scatter systems
+* Outputs wave function or transmission & reflection
+
+density: `density.exe` and `animate.py`
+* Convert wave function to density
+* Animates density propagation
+
+Wigner: `Wigner.exe` and `animate.py`
+* Convert wave function to Wigner distribution
+* Animates Wigner distribution propagation
 
 ## Link to user routines
 OneDimDVR requires a several user routines to run:
-1. The diabatic surfaces
-2. The initial wave function
+1. The number of electronic states
+2. The diabatic surfaces
+3. The initial wave function
 
-These routines should be provided in modules `libHd` and `libwfn` in `libHd.f90` and `libwfn.f90` with a standard interface:
+These routines should be provided in modules `libHd` and `libwfn` with a standard interface:
+1. module libHd
+* `integer, parameter::NStates =`
 * `subroutine initialize_libHd()`
 * `subroutine compute_Hd(q, H)`
+2. module libwfn
 * `subroutine initialize_libwfn()`
 * `subroutine init_wfn(q, psy)`
 

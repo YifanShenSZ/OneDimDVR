@@ -7,6 +7,8 @@
 module libHd
     implicit none
 
+integer, parameter::NStates = 1
+
 contains
 subroutine initialize_libHd()
 end subroutine initialize_libHd

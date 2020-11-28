@@ -31,10 +31,10 @@ speed=1.0, show=True, save=False, FileName='2D'):
     for j in range(y.shape[1]):
         axes[j][0].set_title(title); axes[j][0].set_xlabel(xlabel); axes[j][0].set_ylabel(ylabel)
         axes[j][0].set_xlim(xmin, xmax); axes[j][0].set_ylim(ymin, ymax)
-        line, = axes[j][0].plot(x, y[:, j, 0])
+        line, = axes[j][0].plot(x, y[:, y.shape[1] - 1 - j, 0])
         lines.append(line)
     def animate(i):
-        for j in range(y.shape[1]): lines[j].set_ydata(y[:, j, i])
+        for j in range(y.shape[1]): lines[j].set_ydata(y[:, y.shape[1] - 1 - j, i])
         return lines
     ani=anm.FuncAnimation(fig, animate, y.shape[2], interval = 40.0 / speed, blit = True)
     if(save): ani.save(FileName + ".gif")

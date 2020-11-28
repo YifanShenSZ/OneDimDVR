@@ -1,9 +1,6 @@
 module DVR
-    use libHd
+    use basic
     implicit none
-
-    !Input variable required in this module
-    real*8::mass
 
 contains
 !Compute DVR kinetic energy matrix T
@@ -35,19 +32,22 @@ end subroutine compute_kinetic
 subroutine compute_Hamiltonian(grids, H, NGrids, NStates)
     integer, intent(in)::NGrids, NStates
     real*8, dimension(NGrids), intent(in)::grids
-    complex*16, dimension(NGrids, NGrids, NStates, NStates), intent(out)::H
+    complex*16, dimension(NGrids, NStates, NGrids, NStates), intent(out)::H
     integer::i, j
-    real*8, dimension(NStates, NStates)::Hd
     real*8, dimension(NGrids, NGrids)::T
+    real*8, dimension(NStates, NStates)::Hd
     !Fill kinetic energy into Hamiltonian matrix
     call compute_kinetic(grids, T, NGrids)
-    forall (i = 1 : NStates, j = 1 : NStates, j >= i)
-        H(:, :, j, i) = T
+    forall (i = 1 : NStates)
+        H(:, i, :, i) = T
+    end forall
+    forall (i = 1 : NStates, j = 1 : NStates, j > i)
+        H(:, j, :, i) = 0d0
     end forall
     !Add potential energy to Hamiltonian matrix
     do i = 1, NGrids
         call compute_Hd(grids(i), Hd)
-        H(i, i, :, :) = H(i, i, :, :) + Hd
+        H(i, :, i, :) = H(i, :, i, :) + Hd
     end do
 end subroutine compute_Hamiltonian
 

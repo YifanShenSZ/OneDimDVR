@@ -1,12 +1,12 @@
-###############################################
-#                                             #
-#        Makefile for OneDimDVR-Wigner        #
-#                                             #
-###############################################
+#####################################
+#                                   #
+#        Makefile for Wigner        #
+#                                   #
+#####################################
 
 flag = -O3
 
-OneDimDVR-Wigner.exe: main.f90
+Wigner.exe: main.f90
 	ifort -qopenmp -parallel -ipo $(flag) $^ -o $@
 
 .PHONY: clean

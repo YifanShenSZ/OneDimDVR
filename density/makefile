@@ -1,12 +1,12 @@
-################################################
-#                                              #
-#        Makefile for OneDimDVR-density        #
-#                                              #
-################################################
+######################################
+#                                    #
+#        Makefile for density        #
+#                                    #
+######################################
 
 flag = -O3
 
-OneDimDVR-density.exe: main.f90
+density.exe: main.f90
 	ifort -qopenmp -parallel -ipo $(flag) $^ -o $@
 
 .PHONY: clean

@@ -4,7 +4,7 @@ program main
     !space grid points and wave function from wave function calculation
     integer::NStates, NSnapshots, NGrids
     real*8, allocatable, dimension(:)::grids
-    complex*16, allocatable, dimension(:)::wfn
+    complex*16, allocatable, dimension(:, :)::wfn
     !work variable
     character*128::count
     integer::i, j
@@ -22,7 +22,7 @@ program main
     open(unit=99, file="grids.out", form="unformatted")
         read(99)grids
     close(99)
-    allocate(wfn(NGrids))
+    allocate(wfn(NGrids, NStates))
 
     !Calculate density
     write(*,*)"Calculating density..."
@@ -32,9 +32,9 @@ program main
         open(unit=99+j, file="density"//trim(adjustl(count))//".out", form="unformatted", status="replace")
     end do
     do i = 1, NSnapshots
+        read(99)wfn
         do j = 1, NStates
-            read(99)wfn
-            write(99+j)dble(conjg(wfn) * wfn)
+            write(99+j)dble(conjg(wfn(:, j)) * wfn(:, j))
         end do
     end do
     close(99)

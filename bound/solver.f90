@@ -1,12 +1,8 @@
 module solver
     use LinearAlgebra
-    use libwfn
+    use basic
     use DVR
     implicit none
-
-    !Input variable required in this module
-    integer::NStates
-    real*8 ::total_time, output_interval, left, right, dq
 
 contains
 !This is the most basic solver:
@@ -14,7 +10,6 @@ contains
 !    2. Diagonalize Hamiltonian matrix
 !    3. Propagate by exp(-i E) * H eigen vector
 subroutine propagate_wavefunction()
-    complex*16, parameter::ci = (0d0,1d0)
     !Grid points
     integer::NSnapshots, NGrids
     real*8, allocatable, dimension(:)::grids
@@ -30,6 +25,7 @@ subroutine propagate_wavefunction()
     !Discretize time and space
     NSnapshots = floor(total_time / output_interval) + 1
     NGrids = floor((right - left) / dq) + 1
+    dq = (right - left) / (NGrids - 1)
     allocate(grids(NGrids))
     grids(1) = left
     do i = 2, NGrids
@@ -38,13 +34,13 @@ subroutine propagate_wavefunction()
     open(unit=99, file="grids.out", form="unformatted", status="replace")
         write(99)grids
     close(99)
-    !Diagonalize Hamiltonian
+    !Build and diagonalize Hamiltonian
     NTotal = NGrids * NStates
     allocate(energy(NTotal))
-    allocate(H(NGrids, NGrids, NStates, NStates))
+    allocate(H(NGrids, NStates, NGrids, NStates))
     call compute_Hamiltonian(grids, H, NGrids, NStates)
     call My_zheev('V', H, energy, NTotal)
-    !Evolve wave function
+    !Propagate wave function
     open(unit=99, file="wfn.out", form="unformatted", status="replace")
         !Initial condition
         allocate(diabatic_wfn(NGrids, NStates))
@@ -55,7 +51,7 @@ subroutine propagate_wavefunction()
         !Propagate by exp(-i E) * H eigen vector
         allocate(phase(NTotal))
         forall(i = 1 : NTotal)
-            phase(i) = exp(-ci * energy(i) * output_interval)
+            phase(i) = exp((0d0,-1d0) * energy(i) * output_interval)
         end forall
         allocate(adiabatic_wfn(NTotal))
         !adiabatic_wfn = H^dagger . diabatic_wfn

@@ -1,0 +1,20 @@
+Job type: (wavefunction, transmission)
+wavefunction
+Mass:
+    2000
+Total propagation time:
+    10000
+Time step:
+    1
+Output interval:
+    1
+Left boundary:
+   -30
+Right boundary:
+    30
+Grid spacing:
+    0.1
+Minimum wave number to be absorbed:
+    7.5
+Maximum wave number to be absorbed:
+    12.5

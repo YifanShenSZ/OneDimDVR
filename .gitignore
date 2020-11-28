@@ -37,9 +37,4 @@ __pycache__/
 # Visual studio and VS code
 .vscode/
 
-# Input / output
-*.in
-*.out
-*.txt
-*.gif
-BAK
+BAK/
