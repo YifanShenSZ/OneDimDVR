@@ -13,6 +13,7 @@ import matplotlib.animation as anm
 def parse_args() -> argparse.Namespace: # Command line input
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("state", type=str, help="The electronic state of interest")
+    parser.add_argument("-c","--coarse", type=int, default=1, help="Every how many grids keep 1 grid")
     parser.add_argument("-s","--save", action='store_true', help="Save animation")
     args = parser.parse_args()
     return args
@@ -57,10 +58,10 @@ speed=1.0, show=True, save=True, FileName='3D'):
 
 if __name__ == "__main__":
     args = parse_args()
-    with scipy.io.FortranFile("Wigner_q.out", 'r') as f:
+    with scipy.io.FortranFile("grids.out", 'r') as f:
         grids = f.read_reals()
     NGrids = grids.shape[0]
-    with scipy.io.FortranFile("Wigner_p.out", 'r') as f:
+    with scipy.io.FortranFile("momenta.out", 'r') as f:
         momenta = f.read_reals()
     NMomenta = momenta.shape[0]
     with scipy.io.FortranFile("Wigner" + args.state + ".out", 'r') as f:
@@ -72,12 +73,16 @@ if __name__ == "__main__":
         except:
             pass
     with scipy.io.FortranFile("Wigner" + args.state + ".out", 'r') as f:
-        Wigner = numpy.empty((int(NGrids * NMomenta), NSnapshots))
+        Wigner = numpy.empty((NGrids, NMomenta, NSnapshots))
         for i in range(NSnapshots):
-            Wigner[:, i] = f.read_reals()
-    q, p = numpy.meshgrid(grids, momenta)
+            Wigner[:, :, i] = f.read_reals().reshape((NGrids, NMomenta))
+    coarse_grids = grids[0:NGrids:args.coarse]
+    coarse_momenta = momenta[0:NMomenta:args.coarse]
+    coarse_Wigner = Wigner[0:NGrids:args.coarse, 0:NMomenta:args.coarse, :] \
+                    .reshape((int(coarse_grids.shape[0] * coarse_momenta.shape[0]), NSnapshots))
+    q, p = numpy.meshgrid(coarse_grids, coarse_momenta)
     q = q.ravel()
     p = p.ravel()
-    Animate3D(q, p, Wigner,
+    Animate3D(q, p, coarse_Wigner,
         title="Wigner distribution on state " + args.state,
         save=args.save, FileName="Wigner" + args.state)

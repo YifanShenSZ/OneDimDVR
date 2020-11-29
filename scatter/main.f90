@@ -13,8 +13,8 @@ program main
     write(*,*)"Yifan Shen 2020"
     write(*,*)
     call ShowTime()
-    call ReadInput()
-    call Initialize()
+    call read_input()
+    call initialize()
 
     select case(job)
     case ("wavefunction")
@@ -30,7 +30,7 @@ program main
     write(*,*)"Mission success"
 
 contains
-subroutine ReadInput()
+subroutine read_input()
     open(unit=99, file="OneDimDVR-scatter.in")
         read(99,*); read(99,*)job; write(*,*)"Job type: "//job
         read(99,*); read(99,*)mass
@@ -43,11 +43,11 @@ subroutine ReadInput()
         read(99,*); read(99,*)kmin
         read(99,*); read(99,*)kmax
     close(99)
-end subroutine ReadInput
+end subroutine read_input
 
-subroutine Initialize()
+subroutine initialize()
     call initialize_libHd()
     call initialize_libwfn()
-end subroutine Initialize
+end subroutine initialize
 
 end program main

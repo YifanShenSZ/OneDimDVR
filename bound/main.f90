@@ -12,8 +12,8 @@ program main
     write(*,*)"Yifan Shen 2020"
     write(*,*)
     call ShowTime()
-    call ReadInput()
-    call Initialize()
+    call read_input()
+    call initialize()
     write(*,*)
 
     write(*,*)"Propagating wave function..."
@@ -24,7 +24,7 @@ program main
     write(*,*)"Mission success"
 
 contains
-subroutine ReadInput()
+subroutine read_input()
     open(unit=99, file="OneDimDVR-bound.in")
         read(99,*); read(99,*)mass
         read(99,*); read(99,*)total_time
@@ -33,11 +33,11 @@ subroutine ReadInput()
         read(99,*); read(99,*)right
         read(99,*); read(99,*)dq
     close(99)
-end subroutine ReadInput
+end subroutine read_input
 
-subroutine Initialize()
+subroutine initialize()
     call initialize_libHd()
     call initialize_libwfn()
-end subroutine Initialize
+end subroutine initialize
 
 end program main

@@ -3,9 +3,9 @@ transmission
 Mass:
     2000
 Total propagation time:
-    1000000
+    15000
 Time step:
-    1
+    0.1
 Output interval:
     1
 Left boundary:
@@ -13,7 +13,7 @@ Left boundary:
 Right boundary:
     25
 Grid spacing:
-    0.1
+    0.01
 Minimum wave number to be absorbed:
     7.5
 Maximum wave number to be absorbed:

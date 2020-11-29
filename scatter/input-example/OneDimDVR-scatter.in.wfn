@@ -3,17 +3,17 @@ wavefunction
 Mass:
     2000
 Total propagation time:
-    10000
+    15000
 Time step:
-    1
+    0.1
 Output interval:
     1
 Left boundary:
-   -30
+   -25
 Right boundary:
-    30
+    25
 Grid spacing:
-    0.1
+    0.01
 Minimum wave number to be absorbed:
     7.5
 Maximum wave number to be absorbed:

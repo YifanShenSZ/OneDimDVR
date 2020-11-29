@@ -12,7 +12,7 @@ contains
 subroutine propagate_wavefunction()
     !Grid points
     integer::NSnapshots, NGrids
-    real*8, allocatable, dimension(:)::grids
+    real*8, allocatable, dimension(:)::snapshots, grids
     !DVR Hamiltonian
     integer::NTotal
     real*8, allocatable, dimension(:)::energy
@@ -22,8 +22,18 @@ subroutine propagate_wavefunction()
     complex*16, allocatable, dimension(:, :)::diabatic_wfn
     !Work variable
     integer::i, j, k
-    !Discretize time and space
+    !Discretize time
     NSnapshots = floor(total_time / output_interval) + 1
+    allocate(snapshots(NSnapshots))
+    snapshots(1) = 0d0
+    do i = 2, NSnapshots
+        snapshots(i) = snapshots(i - 1) + output_interval
+    end do
+    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
+        write(99)snapshots
+    close(99)
+    deallocate(snapshots)
+    !Discretize space
     NGrids = floor((right - left) / dq) + 1
     dq = (right - left) / (NGrids - 1)
     allocate(grids(NGrids))

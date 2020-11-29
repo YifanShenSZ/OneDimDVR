@@ -42,7 +42,7 @@ end subroutine RK4
 subroutine propagate_wavefunction()
     !Grid points
     integer::OutputStep, NSnapshots, NUsualGrids, NAbsorbGrids, NGrids
-    real*8, allocatable, dimension(:)::grids
+    real*8, allocatable, dimension(:)::snapshots, grids
     !DVR Hamiltonian with absorbing potential
     integer::NTotal
     complex*16, allocatable, dimension(:, :, :, :)::H
@@ -50,10 +50,20 @@ subroutine propagate_wavefunction()
     complex*16, allocatable, dimension(:, :)::wfn
     !Work variable
     integer::i
-    !Discretize time and space
+    !Discretize time
     OutputStep = floor(output_interval / dt)
     dt = output_interval / OutputStep
     NSnapshots = floor(total_time / output_interval) + 1
+    allocate(snapshots(NSnapshots))
+    snapshots(1) = 0d0
+    do i = 2, NSnapshots
+        snapshots(i) = snapshots(i - 1) + output_interval
+    end do
+    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
+        write(99)snapshots
+    close(99)
+    deallocate(snapshots)
+    !Discretize space
     if (auto_spacing) then
         !D. E. Manolopoulos 2002 J. Chem. Phys. suggests at least 5 grid points every 2 pi / kmax
         dq = min(6.283185307179586d0 / kmax / 5d0, dq)
@@ -237,7 +247,6 @@ subroutine transmit_reflect()
     real*8 function population(wfn, N)
         integer, intent(in)::N
         complex*16, dimension(N), intent(in)::wfn
-        integer::i
         population = dq * dot_product(wfn, wfn)
     end function population
 end subroutine transmit_reflect

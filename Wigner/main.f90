@@ -3,18 +3,15 @@ program main
     implicit none
     !input
     real*8::pmin, pmax, dp
-    integer::grids_increment
     !space grid points and wave function from wave function calculation
     integer::NStates, NSnapshots, NGrids
     real*8, allocatable, dimension(:)::grids
-    complex*16, allocatable, dimension(:, :)::wfn
+    complex*16, allocatable, dimension(:,:)::wfn
     !momentum grid points
     integer::NMomenta
     real*8, allocatable, dimension(:)::momenta
-    !Wigner space grid points
-    integer::NWignerGrids
     !Wigner distribution
-    real*8, allocatable, dimension(:, :)::Wigner
+    real*8, allocatable, dimension(:,:)::Wigner
     !work variable
     character*128::count
     integer::i, j
@@ -23,11 +20,10 @@ program main
     write(*,*)"Yifan Shen 2020"
     write(*,*)
     !Read input
-    open(unit=99, file="OneDimDVR-Wigner.in")
+    open(unit=99, file="Wigner.in")
         read(99,*); read(99,*)pmin
         read(99,*); read(99,*)pmax
         read(99,*); read(99,*)dp
-        read(99,*); read(99,*)grids_increment
     close(99)
     !Read space grid points from wave function calculation
     open(unit=99, file="checkpoint.out")
@@ -48,12 +44,10 @@ program main
     do i = 2, NMomenta
         momenta(i) = momenta(i - 1) + dp
     end do
-    !Apply fewer space grid points for Wigner distribution
-    NWignerGrids = size(grids(1:NGrids:grids_increment))
 
     !Calculate Wigner distribution
     write(*,*)"Calculating Wigner distribution..."
-    allocate(Wigner(NWignerGrids, NMomenta))
+    allocate(Wigner(NGrids, NMomenta))
     open(unit=99, file="wfn.out", form="unformatted")
     do j = 1, NStates
         write(count,*)j
@@ -62,7 +56,7 @@ program main
     do i = 1, NSnapshots
         read(99)wfn
         do j = 1, NStates
-            call wfn2Wigner(grids, momenta, wfn(:, j), Wigner, NGrids, NMomenta, NWignerGrids, grids_increment)
+            call wfn2Wigner(grids, momenta, wfn(:, j), Wigner, NGrids, NMomenta)
             write(99+j)Wigner
         end do
     end do
@@ -72,11 +66,12 @@ program main
     end do
 
     !Output grid information
-    open(unit=99, file="Wigner_q.out", form="unformatted", status="replace")
-        write(99)grids(1:NGrids:grids_increment)
-    close(99)
-    open(unit=99, file="Wigner_p.out", form="unformatted", status="replace")
+    open(unit=99, file="momenta.out", form="unformatted", status="replace")
         write(99)momenta
+    close(99)
+    open(unit=99, file="checkpoint.out", access="append")
+        write(99,*)"Number of momentum grid points:"
+        write(99,*)NMomenta
     close(99)
 
     write(*,*)
@@ -84,25 +79,24 @@ program main
 
 contains
 !Wigner(q, p) = WignerTransform[wfn(q)]
-subroutine wfn2Wigner(grids, momenta, wfn, Wigner, NGrids, NMomenta, NWignerGrids, grids_increment)
-    integer, intent(in)::NGrids, NMomenta, NWignerGrids, grids_increment
-    real*8, dimension(NGrids)::grids
-    real*8, dimension(NMomenta)::momenta
+subroutine wfn2Wigner(grids, momenta, wfn, Wigner, NGrids, NMomenta)
+    integer, intent(in)::NGrids, NMomenta
+    real*8, dimension(NGrids), intent(in)::grids
+    real*8, dimension(NMomenta), intent(in)::momenta
     complex*16, dimension(NGrids), intent(in)::wfn
-    real*8, dimension(NWignerGrids, NMomenta), intent(out)::Wigner
+    real*8, dimension(NGrids, NMomenta), intent(out)::Wigner
     complex*16, parameter::cim2 = (0d0,2d0)
-    integer::centre, i, j, k
+    integer::i, j, k
     real*8::dq
     dq = grids(2) - grids(1)
-    !$OMP PARALLEL DO PRIVATE(centre, i, j, k)
+    !$OMP PARALLEL DO PRIVATE(i, j, k)
     do i = 1, NMomenta
-        do j = 1, NWignerGrids
-            centre = (j - 1) * grids_increment + 1
-            Wigner(j, i) = dble(conjg(wfn(centre)) * wfn(centre))
-            do k = 1, min(NGrids - centre, centre - 1)
+        do j = 1, NGrids
+            Wigner(j, i) = dble(conjg(wfn(j)) * wfn(j))
+            do k = 1, min(NGrids - j, j - 1)
                 Wigner(j, i) = Wigner(j, i) + 2d0 * dble( &
                           + exp(cim2 * momenta(i) * dble(k) * dq) &
-                          * conjg(wfn(centre + k)) * wfn(centre - k) )
+                          * conjg(wfn(j + k)) * wfn(j - k) )
             end do
         end do
     end do
