@@ -14,7 +14,8 @@ def parse_args() -> argparse.Namespace: # Command line input
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("state", type=str, help="The electronic state of interest")
     parser.add_argument("-c","--coarse", type=int, default=1, help="Every how many grids keep 1 grid")
-    parser.add_argument("-s","--save", action='store_true', help="Save animation")
+    parser.add_argument("-s","--speed", type=float, default=1.0, help="Animation speed")
+    parser.add_argument("--save", action='store_true', help="Save animation")
     args = parser.parse_args()
     return args
 
@@ -73,16 +74,17 @@ if __name__ == "__main__":
         except:
             pass
     with scipy.io.FortranFile("Wigner" + args.state + ".out", 'r') as f:
-        Wigner = numpy.empty((NGrids, NMomenta, NSnapshots))
+        Wigner = numpy.empty((NGrids, NMomenta, NSnapshots), order='F')
         for i in range(NSnapshots):
-            Wigner[:, :, i] = f.read_reals().reshape((NGrids, NMomenta))
+            Wigner[:, :, i] = f.read_reals().reshape((NGrids, NMomenta), order='F')
     coarse_grids = grids[0:NGrids:args.coarse]
     coarse_momenta = momenta[0:NMomenta:args.coarse]
     coarse_Wigner = Wigner[0:NGrids:args.coarse, 0:NMomenta:args.coarse, :] \
-                    .reshape((int(coarse_grids.shape[0] * coarse_momenta.shape[0]), NSnapshots))
+                    .reshape((int(coarse_grids.shape[0] * coarse_momenta.shape[0]), NSnapshots), order='F')
     q, p = numpy.meshgrid(coarse_grids, coarse_momenta)
     q = q.ravel()
     p = p.ravel()
     Animate3D(q, p, coarse_Wigner,
         title="Wigner distribution on state " + args.state,
+        speed=args.speed,
         save=args.save, FileName="Wigner" + args.state)

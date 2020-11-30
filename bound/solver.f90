@@ -24,15 +24,6 @@ subroutine propagate_wavefunction()
     integer::i, j, k
     !Discretize time
     NSnapshots = floor(total_time / output_interval) + 1
-    allocate(snapshots(NSnapshots))
-    snapshots(1) = 0d0
-    do i = 2, NSnapshots
-        snapshots(i) = snapshots(i - 1) + output_interval
-    end do
-    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
-        write(99)snapshots
-    close(99)
-    deallocate(snapshots)
     !Discretize space
     NGrids = floor((right - left) / dq) + 1
     dq = (right - left) / (NGrids - 1)
@@ -41,9 +32,6 @@ subroutine propagate_wavefunction()
     do i = 2, NGrids
         grids(i) = grids(i - 1) + dq
     end do
-    open(unit=99, file="grids.out", form="unformatted", status="replace")
-        write(99)grids
-    close(99)
     !Build and diagonalize Hamiltonian
     NTotal = NGrids * NStates
     allocate(energy(NTotal))
@@ -82,7 +70,20 @@ subroutine propagate_wavefunction()
         write(99,*)"Number of grid points:"
         write(99,*)NGrids
     close(99)
+    !Output the grids used in calculation
+    allocate(snapshots(NSnapshots))
+    snapshots(1) = 0d0
+    do i = 2, NSnapshots
+        snapshots(i) = snapshots(i - 1) + output_interval
+    end do
+    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
+        write(99)snapshots
+    close(99)
+    open(unit=99, file="grids.out", form="unformatted", status="replace")
+        write(99)grids
+    close(99)
     !Clean up
+    deallocate(snapshots)
     deallocate(grids)
     deallocate(energy)
     deallocate(H)

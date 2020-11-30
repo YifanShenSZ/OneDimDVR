@@ -52,7 +52,7 @@ if __name__ == "__main__":
     for i in range(len(PolDefs)):
         fig, axes = plt.subplots(NStates, 1, squeeze=False)
         for j in range(NStates):
-            axis = axes[j][0]
+            axis = axes[NStates - 1 - j][0]
             axis.set_xlim(snapshots[0], snapshots[NSnapshots - 1])
             axis.set_ylim(numpy.amin(expectations[i, j, :]), numpy.amax(expectations[i, j, :]))
             axis.plot(snapshots, expectations[i, j, :])

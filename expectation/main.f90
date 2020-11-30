@@ -77,7 +77,7 @@ program main
 
     !Output
     open(unit=99, file="expectation.out", form="unformatted", status="replace")
-        write(99)expectations(:,:,:)
+        write(99)expectations
     close(99)
 
 contains
@@ -95,8 +95,8 @@ subroutine Wigner2expectation(grids, momenta, Wigner, PolDefs, expectations, NGr
     expectations = 0d0
     !$OMP PARALLEL DO PRIVATE(i, j, k)
     do i = 1, NPolynomials
-        do j = 1, NMomenta
-            do k = 1, NGrids
+        do j = 1, NGrids
+            do k = 1, NMomenta
                 expectations(i) = expectations(i) + Wigner(j, k) &
                                 * PolDefs(i)%evaluate(grids(j), momenta(k))
             end do

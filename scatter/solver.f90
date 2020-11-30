@@ -7,8 +7,9 @@ module solver
 !Parameter
     logical::auto_spacing = .true.!Determine grid spacing by absorbance condition
     real*8::maxpopdev = 1d-6, &!Stop wave function propagation when population no longer equals to 1
-            minpop    = 1d-2   !Stop transmission & reflection calculation when all population are absorbed
-                               !Note: absorbing potential can only absorb 99%, 1% will be reflected by boundary
+            minpop    = 1d-4   !Stop transmission & reflection calculation when all population are absorbed
+                               !Note that absorbing potential can only absorb 99%, 1% will be reflected by boundary,
+                               !so a round trip through absorbing region absorbs 99.99%
 
 contains
 subroutine RK4(H, old, new, dt, dim)
@@ -54,15 +55,6 @@ subroutine propagate_wavefunction()
     OutputStep = floor(output_interval / dt)
     dt = output_interval / OutputStep
     NSnapshots = floor(total_time / output_interval) + 1
-    allocate(snapshots(NSnapshots))
-    snapshots(1) = 0d0
-    do i = 2, NSnapshots
-        snapshots(i) = snapshots(i - 1) + output_interval
-    end do
-    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
-        write(99)snapshots
-    close(99)
-    deallocate(snapshots)
     !Discretize space
     if (auto_spacing) then
         !D. E. Manolopoulos 2002 J. Chem. Phys. suggests at least 5 grid points every 2 pi / kmax
@@ -84,9 +76,6 @@ subroutine propagate_wavefunction()
     do i = 2, NUsualGrids
         grids(NAbsorbGrids + i) = grids(NAbsorbGrids + i - 1) + dq
     end do
-    open(unit=99, file="grids.out", form="unformatted", status="replace")
-        write(99)grids(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids)
-    close(99)
     !Build absorbing Hamiltonian
     NTotal = NGrids * NStates
     allocate(H(NGrids, NStates, NGrids, NStates))
@@ -128,7 +117,20 @@ subroutine propagate_wavefunction()
         write(99,*)"Number of grid points:"
         write(99,*)NUsualGrids
     close(99)
+    !Output the grids used in calculation
+    allocate(snapshots(NSnapshots))
+    snapshots(1) = 0d0
+    do i = 2, NSnapshots
+        snapshots(i) = snapshots(i - 1) + output_interval
+    end do
+    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
+        write(99)snapshots
+    close(99)
+    open(unit=99, file="grids.out", form="unformatted", status="replace")
+        write(99)grids(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids)
+    close(99)
     !Clean up
+    deallocate(snapshots)
     deallocate(grids)
     deallocate(H)
     deallocate(wfn)
@@ -164,8 +166,9 @@ subroutine transmit_reflect()
     real*8, dimension(NStates)::transmission, reflection
     !work variable
     integer::i, j
-    !Discretize time and space
+    !Discretize time
     NSnapshots = floor(total_time / dt) + 1
+    !Discretize space
     if (auto_spacing) then
         !D. E. Manolopoulos 2002 J. Chem. Phys. suggests at least 5 grid points every 2 pi / kmax
         dq = min(6.283185307179586d0 / kmax / 5d0, dq)
@@ -221,7 +224,7 @@ subroutine transmit_reflect()
                               wfn_ab(1 : NAbsorbGrids, j), &
                               wfn_ab(1 : NAbsorbGrids, j))
         end forall
-        if (population(wfn_ab, NTotal) < minpop) then
+        if (population(dq, wfn_ab, NTotal) < minpop) then
             write(*,*)"All population has been absorbed"
             write(*,*)"Stop propagation at time ", i * dt
             exit
@@ -244,7 +247,8 @@ subroutine transmit_reflect()
     deallocate(wfn)
     deallocate(wfn_ab)
     contains
-    real*8 function population(wfn, N)
+    real*8 function population(dq, wfn, N)
+        real*8, intent(in)::dq
         integer, intent(in)::N
         complex*16, dimension(N), intent(in)::wfn
         population = dq * dot_product(wfn, wfn)

@@ -13,7 +13,8 @@ import matplotlib.animation as anm
 def parse_args() -> argparse.Namespace: # Command line input
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("state", type=str, nargs='+', help="The electronic state(s) of interest")
-    parser.add_argument("-s","--save", action='store_true', help="Save animation")
+    parser.add_argument("-s","--speed", type=float, default=1.0, help="Animation speed")
+    parser.add_argument("--save", action='store_true', help="Save animation")
     args = parser.parse_args()
     return args
 
@@ -29,12 +30,13 @@ speed=1.0, show=True, save=False, FileName='2D'):
     xmin = numpy.amin(x); xmax = numpy.amax(x); ymin = numpy.amin(y); ymax = numpy.amax(y)
     lines = []
     for j in range(y.shape[1]):
-        axes[j][0].set_title(title); axes[j][0].set_xlabel(xlabel); axes[j][0].set_ylabel(ylabel)
-        axes[j][0].set_xlim(xmin, xmax); axes[j][0].set_ylim(ymin, ymax)
-        line, = axes[j][0].plot(x, y[:, y.shape[1] - 1 - j, 0])
+        axis = axes[y.shape[1] - 1 - j][0]
+        axis.set_title(title); axis.set_xlabel(xlabel); axis.set_ylabel(ylabel)
+        axis.set_xlim(xmin, xmax); axis.set_ylim(ymin, ymax)
+        line, = axis.plot(x, y[:, j, 0])
         lines.append(line)
     def animate(i):
-        for j in range(y.shape[1]): lines[j].set_ydata(y[:, y.shape[1] - 1 - j, i])
+        for j in range(y.shape[1]): lines[j].set_ydata(y[:, j, i])
         return lines
     ani=anm.FuncAnimation(fig, animate, y.shape[2], interval = 40.0 / speed, blit = True)
     if(save): ani.save(FileName + ".gif")
@@ -58,4 +60,4 @@ if __name__ == "__main__":
         with scipy.io.FortranFile("density" + args.state[i] + ".out", 'r') as f:
             for j in range(NSnapshots):
                 densities[:, i, j] = f.read_reals()
-    Animate2D(grids, densities, save=args.save, FileName="density")
+    Animate2D(grids, densities, speed=args.speed, save=args.save, FileName="density")
