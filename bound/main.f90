@@ -7,9 +7,9 @@ program main
     use solver
     implicit none
 
-    write(*,*)"OneDimDVR: Numerically solve the time-dependent Schrodinger equation by discrete variable representation method"
-    write(*,*)"This is a specialized version for 1 dimensional bound systems"
-    write(*,*)"Yifan Shen 2020"
+    write(*,'(A)')"OneDimDVR: Numerically solve the time-dependent Schrodinger equation by discrete variable representation method"
+    write(*,'(A)')"This is a specialized version for 1 dimensional bound systems"
+    write(*,'(A)')"Yifan Shen 2020"
     write(*,*)
     call ShowTime()
     call read_input()

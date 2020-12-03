@@ -8,31 +8,45 @@ module solver
     logical::auto_spacing = .true.!Determine grid spacing by absorbance condition
     real*8::maxpopdev = 1d-6, &!Stop wave function propagation when population no longer equals to 1
             minpop    = 1d-4   !Stop transmission & reflection calculation when all population are absorbed
-                               !Note that absorbing potential can only absorb 99%, 1% will be reflected by boundary,
-                               !so a round trip through absorbing region absorbs 99.99%
+                               !Absorbing potential can only absorb 99% of kmin (larger k has better absorption)
 
 contains
-subroutine RK4(H, old, new, dt, dim)
-    integer,intent(in)::dim
-    complex*16, dimension(dim, dim), intent(in)::H
-    complex*16, dimension(dim), intent(in)::old
-    complex*16, dimension(dim), intent(out)::new
+subroutine RK4(T, V, old, new, dt, NGrids, NStates)
+    integer,intent(in)::NGrids, NStates
+    complex*16, dimension(NGrids, NGrids), intent(in)::T
+    complex*16, dimension(NGrids, NStates, NStates), intent(in)::V
+    complex*16, dimension(NGrids, NStates), intent(in)::old
+    complex*16, dimension(NGrids, NStates), intent(out)::new
     real*8, intent(in)::dt
     real*8::dtd2
-    complex*16, dimension(dim)::k1, k2, k3, k4
+    complex*16, dimension(NGrids, NStates)::k1, k2, k3, k4
     dtd2 = dt / 2d0
-    call TDSE(k1, old            , dim)
-    call TDSE(k2, old + k1 * dtd2, dim)
-    call TDSE(k3, old + k2 * dtd2, dim)
-    call TDSE(k4, old + k3 * dt  , dim)
+    call TDSE(k1, old            )
+    call TDSE(k2, old + k1 * dtd2)
+    call TDSE(k3, old + k2 * dtd2)
+    call TDSE(k4, old + k3 * dt  )
     new = old + dt / 6d0 * (k1 + 2d0 * k2 + 2d0 * k3 + k4)
     contains
     !Time-dependent Schrodinger equation
-    subroutine TDSE(gradient, wfn, dim)
-        integer, intent(in)::dim
-        complex*16, dimension(dim), intent(inout)::gradient
-        complex*16, dimension(dim), intent(in)::wfn
-        call zsymv('L', dim, (0d0,-1d0), H, dim, wfn, 1, (0d0,0d0), gradient, 1)
+    subroutine TDSE(gradient, wfn)
+        complex*16, dimension(NGrids, NStates), intent(out)::gradient
+        complex*16, dimension(NGrids, NStates), intent(in)::wfn
+        integer::i, j
+        !$OMP PARALLEL DO PRIVATE(i, j)
+        do i = 1, NStates
+            !V . wfn
+            gradient(:,i) = V(:,i,1) * wfn(:,1)
+            do j = 2, NStates
+                if (j > i) then
+                    gradient(:,i) = gradient(:,i) + V(:,j,i) * wfn(:,j)
+                else
+                    gradient(:,i) = gradient(:,i) + V(:,i,j) * wfn(:,j)
+                end if
+            end do
+            !-i * T . wfn + -i * V . wfn
+            call zsymv('L', NGrids, (0d0,-1d0), T, NGrids, wfn(:,i), 1, (0d0,-1d0), gradient(:,i), 1)
+        end do
+        !$OMP END PARALLEL DO
     end subroutine TDSE
 end subroutine RK4
 
@@ -44,11 +58,11 @@ subroutine propagate_wavefunction()
     !Grid points
     integer::OutputStep, NSnapshots, NUsualGrids, NAbsorbGrids, NGrids
     real*8, allocatable, dimension(:)::snapshots, grids
-    !DVR Hamiltonian with absorbing potential
-    integer::NTotal
-    complex*16, allocatable, dimension(:, :, :, :)::H
+    !DVR Hamiltonian: kinetic energy T and potential energy V
+    complex*16, allocatable, dimension(:,:)::T
+    complex*16, allocatable, dimension(:,:,:)::V
     !DVR wave function
-    complex*16, allocatable, dimension(:, :)::wfn
+    complex*16, allocatable, dimension(:,:)::wfn
     !Work variable
     integer::i
     !Discretize time
@@ -77,9 +91,10 @@ subroutine propagate_wavefunction()
         grids(NAbsorbGrids + i) = grids(NAbsorbGrids + i - 1) + dq
     end do
     !Build absorbing Hamiltonian
-    NTotal = NGrids * NStates
-    allocate(H(NGrids, NStates, NGrids, NStates))
-    call compute_AbsorbedHamiltonian(grids, H, NGrids, NStates)
+    allocate(T(NGrids, NGrids))
+    call compute_kinetic(dq, T, NGrids)
+    allocate(V(NGrids, NStates, NStates))
+    call compute_potential(grids, V, NGrids, NStates)
     !Propagate wave function
     open(unit=99, file="wfn.out", form="unformatted", status="replace")
         !Initial condition
@@ -90,7 +105,7 @@ subroutine propagate_wavefunction()
         write(99)wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, :)
         !Propagate by RK4
         do i = 1, (NSnapshots - 1) * OutputStep
-            call RK4(H, wfn, wfn, dt, NTotal)
+            call RK4(T, V, wfn, wfn, dt, NGrids, NStates)
             !Write trajectory
             if(mod(i, OutputStep) == 0) then
                 write(99)wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, :)
@@ -132,7 +147,8 @@ subroutine propagate_wavefunction()
     !Clean up
     deallocate(snapshots)
     deallocate(grids)
-    deallocate(H)
+    deallocate(T)
+    deallocate(V)
     deallocate(wfn)
     contains
     real*8 function population()
@@ -157,13 +173,14 @@ subroutine transmit_reflect()
     !grid points
     integer::NSnapshots, NUsualGrids, NAbsorbGrids, NGrids
     real*8, allocatable, dimension(:)::grids
-    !DVR Hamiltonian without/with absorbing potential
-    integer::NTotal
-    complex*16, allocatable, dimension(:, :, :, :)::H, H_ab
+    !DVR matrices: kinetic energy T, momentum p, potential energy V
+    complex*16, allocatable, dimension(:,:)::T, p
+    complex*16, allocatable, dimension(:,:,:)::V
     !DVR wave function
-    complex*16, allocatable, dimension(:, :)::wfn, wfn_ab
+    complex*16, allocatable, dimension(:, :)::wfn
     !transmission and reflection
     real*8, dimension(NStates)::transmission, reflection
+    complex*16, allocatable, dimension(:)::pwfn, pwfnstar
     !work variable
     integer::i, j
     !Discretize time
@@ -189,42 +206,37 @@ subroutine transmit_reflect()
     do i = 2, NUsualGrids
         grids(NAbsorbGrids + i) = grids(NAbsorbGrids + i - 1) + dq
     end do
-    !Build absorbing Hamiltonian
-    NTotal = NGrids * NStates
-    allocate(H(NGrids, NStates, NGrids, NStates))
-    allocate(H_ab(NGrids, NStates, NGrids, NStates))
-    call compute_Hamiltonian_AbsorbedHamiltonian(grids, H, H_ab, NGrids, NStates)
+    !Build DVR matrices
+    allocate(T(NGrids, NGrids))
+    call compute_kinetic(dq, T, NGrids)
+    allocate(p(NGrids, NGrids))
+    call compute_momentum(dq, p, NGrids)
+    allocate(V(NGrids, NStates, NStates))
+    call compute_potential(grids, V, NGrids, NStates)
     !Set initial condition
     allocate(wfn(NGrids, NStates))
-    allocate(wfn_ab(NGrids, NStates))
     do i = 1, NGrids
-        call init_wfn(grids(i), wfn_ab(i, :))
+        call init_wfn(grids(i), wfn(i, :))
     end do
     transmission = 0d0
     reflection   = 0d0
-    minpop = minpop / dq
+    allocate(pwfn    (NGrids))
+    allocate(pwfnstar(NGrids))
     !Propagate wave function
     do i = 1, NSnapshots
-        call RK4(H   , wfn_ab, wfn   , dt, NTotal)
-        call RK4(H_ab, wfn_ab, wfn_ab, dt, NTotal)
+        call RK4(T, V, wfn, wfn, dt, NGrids, NStates)
         !Calculate absorption
-        forall (j = 1 : NStates)
-            transmission(j) = transmission(j) &
-                            + dq * dot_product( &
-                              wfn(NAbsorbGrids + NUsualGrids + 1 : NGrids, j), &
-                              wfn(NAbsorbGrids + NUsualGrids + 1 : NGrids, j)) &
-                            - dq * dot_product( &
-                              wfn_ab(NAbsorbGrids + NUsualGrids + 1 : NGrids, j), &
-                              wfn_ab(NAbsorbGrids + NUsualGrids + 1 : NGrids, j))
-            reflection(j)   = reflection(j) &
-                            + dq * dot_product( &
-                              wfn(1 : NAbsorbGrids, j), &
-                              wfn(1 : NAbsorbGrids, j)) &
-                            - dq * dot_product( &
-                              wfn_ab(1 : NAbsorbGrids, j), &
-                              wfn_ab(1 : NAbsorbGrids, j))
-        end forall
-        if (population(dq, wfn_ab, NTotal) < minpop) then
+        do j = 1, NStates
+            call zhemv('L', NGrids, (1d0,0d0), p, NGrids,       wfn(:,j) , 1, (0d0,0d0), pwfn    , 1)
+            call zhemv('L', NGrids, (1d0,0d0), p, NGrids, conjg(wfn(:,j)), 1, (0d0,0d0), pwfnstar, 1)
+            transmission(j) = transmission(j) - dt / 2d0 / mass &
+                            * (wfn(NAbsorbGrids + NUsualGrids, j) * pwfnstar(NAbsorbGrids + NUsualGrids) &
+                            - conjg(wfn(NAbsorbGrids + NUsualGrids, j)) * pwfn(NAbsorbGrids + NUsualGrids))
+            reflection(j) = reflection(j) + dt / 2d0 / mass &
+                            * (wfn(NAbsorbGrids + 1, j) * pwfnstar(NAbsorbGrids + 1) &
+                            - conjg(wfn(NAbsorbGrids + 1, j)) * pwfn(NAbsorbGrids + 1))
+        end do
+        if (population() < minpop) then
             write(*,*)"All population has been absorbed"
             write(*,*)"Stop propagation at time ", i * dt
             exit
@@ -232,7 +244,7 @@ subroutine transmit_reflect()
     end do
     if (i > NSnapshots) then
         write(*,*)"Warning: not all population was absorbed within total propagation time"
-        write(*,*)"Transmission + reflection may be less than 1"
+        write(*,*)population(), " population remains"
     end if
     !Output
     open(unit=99, file="transmission.txt", status="replace")
@@ -243,15 +255,18 @@ subroutine transmit_reflect()
     close(99)
     !Clean up
     deallocate(grids)
-    deallocate(H)
+    deallocate(T)
+    deallocate(V)
     deallocate(wfn)
-    deallocate(wfn_ab)
     contains
-    real*8 function population(dq, wfn, N)
-        real*8, intent(in)::dq
-        integer, intent(in)::N
-        complex*16, dimension(N), intent(in)::wfn
-        population = dq * dot_product(wfn, wfn)
+    real*8 function population()
+        integer::i
+        population = 0d0
+        do i = 1, NStates
+            population = population + dq * dot_product( &
+                         wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i), &
+                         wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i))
+        end do
     end function population
 end subroutine transmit_reflect
 
