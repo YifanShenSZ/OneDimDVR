@@ -25,13 +25,33 @@ program main
 
 contains
 subroutine read_input()
-    open(unit=99, file="OneDimDVR-bound.in")
+    integer::i
+    open(unit=99, file="OneDimDVR-bound.in", status="old", iostat=i)
+    if (i == 0) then
         read(99,*); read(99,*)mass
         read(99,*); read(99,*)total_time
         read(99,*); read(99,*)output_interval
         read(99,*); read(99,*)left
         read(99,*); read(99,*)right
         read(99,*); read(99,*)dq
+    else
+        close(99)
+        open(unit=99, file="OneDimDVR-bound.in", status="replace")
+            write(99,*)"Mass:"
+            write(99,*)
+            write(99,*)"Total propagation time:"
+            write(99,*)
+            write(99,*)"Output interval:"
+            write(99,*)
+            write(99,*)"Left boundary:"
+            write(99,*)
+            write(99,*)"Right boundary:"
+            write(99,*)
+            write(99,*)"Grid spacing:"
+            write(99,*)
+        close(99)
+        stop "Please fill in OneDimDVR-bound.in, a template has been provided"
+    end if
     close(99)
 end subroutine read_input
 

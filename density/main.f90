@@ -13,7 +13,7 @@ program main
     write(*,*)"Yifan Shen 2020"
     write(*,*)
     !Read space grid points from wave function calculation
-    open(unit=99, file="checkpoint.out")
+    open(unit=99, file="checkpoint.txt")
         read(99,*); read(99,*)NStates    
         read(99,*); read(99,*)NSnapshots
         read(99,*); read(99,*)NGrids

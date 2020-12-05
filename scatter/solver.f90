@@ -77,6 +77,8 @@ subroutine propagate_wavefunction()
     end if
     NUsualGrids = floor((right - left) / dq) + 1
     dq = (right - left) / (NUsualGrids - 1)
+    !This -1 prevents the grids from touching the boundary
+    !since absorbing potential diverges there
     NAbsorbGrids = floor(6.283185307179586d0 / kmin / dq) - 1
     NGrids = NUsualGrids + 2 * NAbsorbGrids
     allocate(grids(NGrids))
@@ -193,6 +195,8 @@ subroutine transmit_reflect()
     end if
     NUsualGrids = floor((right - left) / dq) + 1
     dq = (right - left) / (NUsualGrids - 1)
+    !This -1 prevents the grids from touching the boundary
+    !since absorbing potential diverges there
     NAbsorbGrids = floor(6.283185307179586d0 / kmin / dq) - 1
     NGrids = NUsualGrids + 2 * NAbsorbGrids
     allocate(grids(NGrids))

@@ -42,7 +42,7 @@ program main
         end do
     close(99)
     !Read space and momentum grid points from from Wigner routine
-    open(unit=99, file="checkpoint.out")
+    open(unit=99, file="checkpoint.txt")
         read(99,*); read(99,*)NStates    
         read(99,*); read(99,*)NSnapshots
         read(99,*); read(99,*)NGrids

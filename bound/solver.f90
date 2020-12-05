@@ -62,7 +62,7 @@ subroutine propagate_wavefunction()
         end do
     close(99)
     !Leave a checkpoint
-    open(unit=99, file="checkpoint.out", status="replace")
+    open(unit=99, file="checkpoint.txt", status="replace")
         write(99,*)"Number of electronic states:"
         write(99,*)NStates
         write(99,*)"Number of time snapshots:"

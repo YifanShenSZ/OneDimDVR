@@ -33,6 +33,7 @@ __pycache__/
 *.exe
 *.out
 *.app
+OneDimDVR/
 
 # Visual studio and VS code
 .vscode/

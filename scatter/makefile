@@ -1,11 +1,11 @@
-####################################################
-#                                                  #
-#        Makefile for OneDimDVR-scatter-RK4        #
-#                                                  #
-####################################################
+################################################
+#                                              #
+#        Makefile for OneDimDVR-scatter        #
+#                                              #
+################################################
 
 # Flags for user to tune
-source_dir = ~/Software/Mine/OneDimDVR/scatter-RK4/
+source_dir = ~/Software/Mine/OneDimDVR/scatter/
 FL_dir = ~/Library/Fortran-Library/
 usr_dir = 
 link_type = source
@@ -16,7 +16,7 @@ src = $(addprefix $(source_dir), basic.f90 DVR.f90 solver.f90 main.f90)
 inc = $(addprefix $(FL_dir), include)
 lib = $(addprefix $(FL_dir), lib/libFL.a)
 
-OneDimDVR-scatter-RK4.exe: $(src)
+OneDimDVR-scatter.exe: $(src)
 ifeq ($(link_type),source)
 	ifort -qopenmp -parallel -mkl -static-intel -ipo -I$(inc) $(flag) $(addprefix $(usr_dir), libHd.f90 libwfn.f90) $^ $(lib) -o $@
 else
