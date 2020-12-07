@@ -20,13 +20,26 @@ program main
     write(*,*)"Yifan Shen 2020"
     write(*,*)
     !Read input
-    open(unit=99, file="Wigner.in")
+    open(unit=99, file="Wigner.in", status="old", iostat=i)
+    if (i == 0) then
         read(99,*); read(99,*)pmin
         read(99,*); read(99,*)pmax
         read(99,*); read(99,*)dp
+    else
+        close(99)
+        open(unit=99, file="Wigner.in", status="replace")
+            write(99,*)"Minimum momentum:"
+            write(99,*)
+            write(99,*)"Maximum momentum:"
+            write(99,*)
+            write(99,*)"Momentum step:"
+            write(99,*)
+        close(99)
+        stop "Please fill in Wigner.in, a template has been provided"
+    end if
     close(99)
     !Read space grid points from wave function calculation
-    open(unit=99, file="checkpoint.out")
+    open(unit=99, file="checkpoint.txt")
         read(99,*); read(99,*)NStates    
         read(99,*); read(99,*)NSnapshots
         read(99,*); read(99,*)NGrids
@@ -69,7 +82,7 @@ program main
     open(unit=99, file="momenta.out", form="unformatted", status="replace")
         write(99)momenta
     close(99)
-    open(unit=99, file="checkpoint.out", access="append")
+    open(unit=99, file="checkpoint.txt", access="append")
         write(99,*)"Number of momentum grid points:"
         write(99,*)NMomenta
     close(99)

@@ -4,12 +4,6 @@ module solver
     use DVR
     implicit none
 
-!Parameter
-    logical::auto_spacing = .true.!Determine grid spacing by absorbance condition
-    real*8::maxpopdev = 1d-6, &!Stop wave function propagation when population no longer equals to 1
-            minpop    = 1d-4   !Stop transmission & reflection calculation when all population are absorbed
-                               !Absorbing potential can only absorb 99% of kmin (larger k has better absorption)
-
 contains
 !Perform matrix vector multiplication 2H . wfn
 subroutine perform_2Hwfn(output, T, V, wfn, NGrids, NStates)
@@ -37,6 +31,7 @@ subroutine perform_2Hwfn(output, T, V, wfn, NGrids, NStates)
 end subroutine perform_2Hwfn
 
 !Recursively determine the new Chebyshev wave function
+!V. A. Mandelshtam 1995 J. Chem. Phys.
 !H. Guo 2006 Phys. Rev. A
 subroutine recurse(new, D, T, V, current, old, NGrids, NStates)
     integer,intent(in)::NGrids, NStates
@@ -60,11 +55,12 @@ subroutine propagate_Chebyshev()
     !Grid points
     integer::NUsualGrids, NAbsorbGrids, NGrids
     real*8, allocatable, dimension(:)::grids
-    !DVR matrices: damping D, kinetic energy T, potential energy V
-    complex*16, allocatable, dimension(:)::D
+    !DVR Hamiltonian: kinetic energy T, potential energy V, damping D
     complex*16, allocatable, dimension(:,:)::T
     complex*16, allocatable, dimension(:,:,:)::V
+    complex*16, allocatable, dimension(:)::D
     !DVR wave function
+    real*8::population
     complex*16, allocatable, dimension(:,:)::wfnnew, wfn, wfnold
     !Chebyshev scalor
     real*8::Hmax, Hmin, Tmax, Tmin, Vmax, Vmin, shift
@@ -73,11 +69,6 @@ subroutine propagate_Chebyshev()
     !Work variable
     integer::i, j
     !Discretize space
-    if (auto_spacing) then
-        !D. E. Manolopoulos 2002 J. Chem. Phys. suggests at least 5 grid points every 2 pi / kmax
-        dq = min(6.283185307179586d0 / kmax / 5d0, dq)
-        write(*,*)"Consider absorbance condition and user input, grid spacing is set to ", dq
-    end if
     NUsualGrids = floor((right - left) / dq) + 1
     dq = (right - left) / (NUsualGrids - 1)
     NAbsorbGrids = floor(6.283185307179586d0 / kmin / dq)
@@ -93,14 +84,14 @@ subroutine propagate_Chebyshev()
     do i = 2, NUsualGrids
         grids(NAbsorbGrids + i) = grids(NAbsorbGrids + i - 1) + dq
     end do
-    !Build DVR matrices
-    allocate(D(NGrids))
-    call compute_damping(grids, D, NGrids)
+    !Build DVR Hamiltonian
     allocate(T(NGrids, NGrids))
     call compute_kinetic(dq, T, NGrids)
     allocate(V(NGrids, NStates, NStates))
     call compute_potential(grids, V, NGrids, NStates)
-    !Calculate Chebyshev scaled Hamiltonian
+    allocate(D(NGrids))
+    call compute_damping(grids, D, NGrids)
+    !Scale Hamiltonian to [-1, 1]
     Tmax = 39.47841760435743d0 / dq / dq / 2d0 / mass ! (2pi/dq)^2 / 2m
     Tmin = Tmax / NGrids / NGrids
     Hd = V(1,:,:)
@@ -140,13 +131,28 @@ subroutine propagate_Chebyshev()
         !Propagate by Chebyshev recursion
         do i = 2, order
             call recurse(wfnnew, D, T, V, wfn, wfnold, NGrids, NStates)
+            !Write trajectory
             write(99)wfnnew
+            !Check population
+            call compute_population(population) 
+            if (population < 0.0001) then
+                write(*,*)"All population has been absorbed"
+                write(*,*)"Stop propagation at order ", i
+                order = i
+                exit
+            end if
+            !Get ready for the next loop
             wfnold = wfn
             wfn = wfnnew
         end do
+        if (i > order) then
+            write(*,*)"Warning: not all population was absorbed within total order"
+            write(*,*)population, " population remains"
+            write(*,*)"The scattering process has not reached its end yet"
+        end if
     close(99)
     !Leave a checkpoint
-    open(unit=99, file="Chebyshev-checkpoint.txt", status="replace")
+    open(unit=99, file="checkpoint-Chebyshev.txt", status="replace")
         write(99,*)"Number of electronic states:"
         write(99,*)NStates
         write(99,*)"Order of Chebyshev propagation:"
@@ -164,12 +170,24 @@ subroutine propagate_Chebyshev()
     close(99)
     !Clean up
     deallocate(grids)
-    deallocate(D)
     deallocate(T)
     deallocate(V)
+    deallocate(D)
     deallocate(wfnnew)
     deallocate(wfn)
     deallocate(wfnold)
+    contains
+    subroutine compute_population(population)
+        real*8, intent(out)::population
+        integer::i
+        population = 0d0
+        do i = 1, NStates
+            population = population + dot_product( &
+                         wfnnew(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i), &
+                         wfnnew(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i))
+        end do
+        population = population * dq
+    end subroutine compute_population
 end subroutine propagate_Chebyshev
 
 end module solver

@@ -1,0 +1,8 @@
+Mass:
+    1836
+Time step:
+    0.1
+Left boundary:
+    -20 
+Right boundary:
+     20

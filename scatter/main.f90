@@ -23,6 +23,8 @@ program main
     case("transmission")
         write(*,*)"Calculating transmission and reflection..."
         call transmit_reflect()
+    case default
+        stop "Unknown job type"
     end select
     write(*,*)
 
@@ -31,7 +33,9 @@ program main
 
 contains
 subroutine read_input()
-    open(unit=99, file="OneDimDVR-scatter.in")
+    integer::i
+    open(unit=99, file="OneDimDVR-scatter.in", status="old", iostat=i)
+    if (i == 0) then
         read(99,*); read(99,*)job; write(*,*)"Job type: "//job
         read(99,*); read(99,*)mass
         read(99,*); read(99,*)total_time
@@ -42,6 +46,32 @@ subroutine read_input()
         read(99,*); read(99,*)dq
         read(99,*); read(99,*)kmin
         read(99,*); read(99,*)kmax
+    else
+        close(99)
+        open(unit=99, file="OneDimDVR-scatter.in", status="replace")
+            write(99,*)"Job type: (wavefunction, transmission)"
+            write(99,*)
+            write(99,*)"Mass:"
+            write(99,*)
+            write(99,*)"Total propagation time:"
+            write(99,*)
+            write(99,*)"Time step:"
+            write(99,*)
+            write(99,*)"Output interval:"
+            write(99,*)
+            write(99,*)"Left boundary:"
+            write(99,*)
+            write(99,*)"Right boundary:"
+            write(99,*)
+            write(99,*)"Grid spacing:"
+            write(99,*)
+            write(99,*)"Minimum wave number to be absorbed:"
+            write(99,*)
+            write(99,*)"Maximum wave number to be absorbed:"
+            write(99,*)
+        close(99)
+        stop "Please fill in OneDimDVR-scatter.in, a template has been provided"
+    end if
     close(99)
 end subroutine read_input
 

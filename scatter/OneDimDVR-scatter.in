@@ -1,5 +1,5 @@
 Job type: (wavefunction, transmission)
-transmission
+wavefunction
 Mass:
     2000
 Total propagation time:
@@ -7,11 +7,11 @@ Total propagation time:
 Time step:
     0.1
 Output interval:
-    1
+    10
 Left boundary:
-   -25
+   -20
 Right boundary:
-    25
+    20
 Grid spacing:
     0.1
 Minimum wave number to be absorbed:

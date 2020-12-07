@@ -3,6 +3,29 @@ module DVR
     implicit none
 
 contains
+!Compute DVR momentum matrix p
+!Derived by infinite order finite difference
+subroutine compute_momentum(dq, p, NGrids)
+    integer, intent(in)::NGrids
+    real*8, intent(in)::dq
+    complex*16, dimension(NGrids, NGrids), intent(out)::p
+    integer::i, j, k
+    do i = 1, NGrids
+        p(i, i) = 0d0
+        do j = i + 1, NGrids
+            k = j - i
+            p(j, i) = 1d0 / k
+            if (mod(k, 2) == 1) then
+                p(j, i) = -p(j, i)
+            end if
+        end do
+    end do
+    p = p * (0d0,-1d0) / dq
+    forall (i = 1 : NGrids, j = 1 : NGrids, i < j)
+        p(i, j) = conjg(p(j, i))
+    end forall
+end subroutine compute_momentum
+
 !Compute DVR kinetic energy matrix T
 !W. H. Miller 1992 J. Chem. Phys.
 subroutine compute_kinetic(dq, T, NGrids)
@@ -24,7 +47,7 @@ subroutine compute_kinetic(dq, T, NGrids)
 end subroutine compute_kinetic
 
 !Compute potential energy matrix V with absorbing potential
-!D. E. Manolopoulos 2002 J. Chem. Phys.
+!D. E. Manolopoulos 2004 J. Chem. Phys.
 subroutine compute_potential(grids, V, NGrids, NStates)
     integer, intent(in)::NGrids, NStates
     real*8, dimension(NGrids), intent(in)::grids
@@ -35,8 +58,8 @@ subroutine compute_potential(grids, V, NGrids, NStates)
     real*8::c1, y, denominator
     complex*16::c2, absorbance
     !c is a const Manolopoulos obtained from elliptic integral
-    real*8,parameter::csq = 6.87519864356d0, &
-                      inv_csq = 0.14545034286924935d0 ! 1 / csq
+    real*8, parameter::csq = 6.87519864356d0, &
+                       inv_csq = 0.14545034286924935d0 ! 1 / csq
     c1 = csq * kmin * kmin / 39.47841760435743d0 ! 4 pi^2
     c2 = (0d0, -4d0) * kmin * kmin / mass
     do i = 1, NGrids
@@ -66,25 +89,5 @@ subroutine compute_potential(grids, V, NGrids, NStates)
         end if
     end do
 end subroutine compute_potential
-
-!Compute DVR momentum matrix p
-!Derived by infinite order finite difference
-subroutine compute_momentum(dq, p, NGrids)
-    integer, intent(in)::NGrids
-    real*8, intent(in)::dq
-    complex*16, dimension(NGrids, NGrids), intent(out)::p
-    integer::i, j, k
-    do i = 1, NGrids
-        p(i, i) = 0d0
-        do j = i + 1, NGrids
-            k = j - i
-            p(j, i) = 1d0 / k
-            if (mod(k, 2) == 1) then
-                p(j, i) = -p(j, i)
-            end if
-        end do
-    end do
-    p = p * (0d0,-1d0) / dq
-end subroutine compute_momentum
 
 end module DVR

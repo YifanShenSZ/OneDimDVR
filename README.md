@@ -12,7 +12,7 @@ This is a specialized version for 1 dimensional systems
 
 `OneDimDVR-scatter.exe`:
 * Specialized for scatter systems
-* Outputs wave function
+* Outputs wave function or transmission rate
 
 `OneDimDVR-Chebyshev.exe`:
 * Specialized for scatter systems
@@ -20,8 +20,9 @@ This is a specialized version for 1 dimensional systems
 
 Analyzers:
 * `Che2wfn.exe` converts Chebyshev order domain wave function to usual time domain
+* `Che2tran.exe` calculates transmission and reflection from Chebyshev order domain wave function
 * `density.exe` converts wave function to density
-* `transmission.exe` calculates transmission and reflection from wave function
+* `transmission.exe` calculates transmission and reflection from wave function. The wave function needs to be saved every a small output interval, as small as time step, since this routine runs a time integration (so the wave function can be disk-consuming!)
 * `animate-density.py` animates density propagation
 * `Wigner.exe` converts wave function to Wigner distribution
 * `animate-Wigner.py` animates Wigner distribution propagation
@@ -60,4 +61,6 @@ The user files mentioned above should be in a same directory, whose path should 
 ## Reference
 > 1. W. H. Miller 1992 J. Chem. Phys.
 > 2. D. E. Manolopoulos 2002 J. Chem. Phys.
-> 3. H. Guo 2006 Phys. Rev. A
+> 3. D. E. Manolopoulos 2004 J. Chem. Phys.
+> 4. V. A. Mandelshtam 1995 J. Chem. Phys.
+> 5. H. Guo 2006 Phys. Rev. A

@@ -7,6 +7,6 @@ module basic
     real*8 ::mass
     integer::order
     real*8 ::left, right, dq, &
-             kmin, kmax
+             kmin
 
 end module basic

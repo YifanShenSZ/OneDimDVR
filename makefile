@@ -8,6 +8,7 @@ flag = -O3
 
 analyzers:
 	cd Che2wfn     ; make flag=$(flag); cd ..
+	cd Che2tran    ; make flag=$(flag); cd ..
 	cd density     ; make flag=$(flag); cd ..
 	cd transmission; make flag=$(flag); cd ..
 	cd Wigner      ; make flag=$(flag); cd ..
@@ -18,6 +19,7 @@ install:
 	rm -rf OneDimDVR
 	mkdir OneDimDVR
 	mv Che2wfn/Che2wfn.exe           OneDimDVR
+	mv Che2tran/Che2tran.exe         OneDimDVR
 	mv density/density.exe           OneDimDVR
 	mv transmission/transmission.exe OneDimDVR
 	mv Wigner/Wigner.exe             OneDimDVR

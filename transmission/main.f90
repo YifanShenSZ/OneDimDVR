@@ -15,7 +15,7 @@ program main
     real*8, allocatable, dimension(:)::transmission, reflection
     !work variable
     integer::i, j
-    real*8::check
+    real*8::population
 
     write(*,*)"Calculate transmission and reflection from OneDimDVR wave function"
     write(*,*)"Yifan Shen 2020"
@@ -89,27 +89,28 @@ program main
             do j = 1, NStates
                 call zhemv('L', NGrids, (1d0,0d0), p, NGrids,       wfn(:,j) , 1, (0d0,0d0), pwfn    , 1)
                 call zhemv('L', NGrids, (1d0,0d0), p, NGrids, conjg(wfn(:,j)), 1, (0d0,0d0), pwfnstar, 1)
-                transmission(j) = transmission(j) - dt / 2d0 / mass &
-                                * dble(wfn(right_index, j) * pwfnstar(right_index) &
+                transmission(j) = transmission(j) &
+                                - dble(wfn(right_index, j) * pwfnstar(right_index) &
                                 - conjg(wfn(right_index, j)) * pwfn(right_index))
-                reflection(j) = reflection(j) + dt / 2d0 / mass &
-                                * dble(wfn(left_index, j) * pwfnstar(left_index) &
+                reflection(j) = reflection(j) &
+                                + dble(wfn(left_index, j) * pwfnstar(left_index) &
                                 - conjg(wfn(left_index, j)) * pwfn(left_index))
             end do
         end do
     close(99)
+    transmission = transmission * dt / 2d0 / mass
+    reflection   = reflection   * dt / 2d0 / mass
+    population = sum(transmission) + sum(reflection)
+    if (population < 0.9999) then
+        write(*,*)"Warning: sum of transmission and reflection = ", population
+        write(*,*)"Maybe not all population has left interaction region"
+        write(*,*)"Maybe grid spacing and/or output interval is not sufficiently small"
+    else if (population > 1.0001) then
+        write(*,*)"Warning: sum of transmission and reflection = ", population
+        write(*,*)"Maybe grid spacing and/or output interval is not sufficiently small"
+    end if
 
     !Output
-    check = sum(transmission) + sum(reflection)
-    if (check < 0.9999) then
-        write(*,*)"Warning: sum of transmission and reflection = ", check
-        write(*,*)"Maybe not all population has left interaction region"
-        write(*,*)"Please try increasing total propagation time"
-    else if (check > 1.0001) then
-        write(*,*)"Warning: sum of transmission and reflection = ", check
-        write(*,*)"Maybe time step is not sufficiently small"
-        write(*,*)"Please try decreasing output interval"
-    end if
     open(unit=99, file="transmission.txt", status="replace")
         write(99,*)"state"//char(9)//"transmission"//char(9)//"reflection"
         do i = 1, NStates

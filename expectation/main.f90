@@ -2,6 +2,7 @@
 program main
     use polynomial
     implicit none
+    integer, external::omp_get_max_threads
     !polynomials to calculate expectations
     integer::NPolynomials
     type(PolDef), allocatable, dimension(:)::PolDefs
@@ -20,7 +21,8 @@ program main
     write(*,*)
     !Read input
     NPolynomials = 0
-    open(unit=99, file="expectation.in", status="old")
+    open(unit=99, file="expectation.in", status="old", iostat=i)
+    if (i == 0) then
         !Count how many terms there are
         do
             read(99, *, iostat=i)
@@ -38,15 +40,39 @@ program main
             read(99, "(I5)", advance="no")order
             read(99, "(A)")line
             call parse(line, ' ', strs, j)
+            if (order /= j) then
+                write(*,*)"The polynomial order and the number of monomials are inconsistent"
+                write(*,*)"Please check your input and format (I5 for each integer)"
+                stop
+            end if
             call PolDefs(i)%construct(order, strs)
         end do
+    else
+        close(99)
+        open(unit=99, file="expectation.in", status="replace")
+            write(99,'(3I5)')2,  1,  1
+            write(99,'(3I5)')2,  1, -1
+            write(99,'(3I5)')2, -1, -1
+            write(99,'(2I5)')1,  1
+            write(99,'(2I5)')1, -1
+            write(99, '(I5)')0
+        close(99)
+        write(*,*)"Please fill in expectation.in, an example has been provided"
+        write(*,*)"The example shows how to calculate <xx>, <xp>, <pp>, <x>, <p>, <1>"
+        stop
+    end if
     close(99)
+    if (NPolynomials < omp_get_max_threads()) then
+        call omp_set_num_threads(NPolynomials)
+    end if
     !Read space and momentum grid points from from Wigner routine
     open(unit=99, file="checkpoint.txt")
         read(99,*); read(99,*)NStates    
         read(99,*); read(99,*)NSnapshots
         read(99,*); read(99,*)NGrids
-        read(99,*); read(99,*)NMomenta
+        read(99,*,iostat=i)
+        if (i /= 0) stop "Please compute Wigner distribution first"
+        read(99,*)NMomenta
     close(99)
     allocate(grids(NGrids))
     open(unit=99, file="grids.out", form="unformatted")
@@ -79,6 +105,9 @@ program main
     open(unit=99, file="expectation.out", form="unformatted", status="replace")
         write(99)expectations
     close(99)
+
+    write(*,*)
+    write(*,*)"Mission success"
 
 contains
 subroutine Wigner2expectation(grids, momenta, Wigner, PolDefs, expectations, NGrids, NMomenta, NPolynomials)

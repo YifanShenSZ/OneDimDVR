@@ -1,14 +1,12 @@
 Mass:
     2000
 Order of Chebyshev propagation:
-    1000
+    100000
 Left boundary:
-   -25
+   -20
 Right boundary:
-    25
+    20
 Grid spacing:
     0.1
 Minimum wave number to be absorbed:
-    7.5
-Maximum wave number to be absorbed:
-    12.5
+    2.5

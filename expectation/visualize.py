@@ -40,7 +40,7 @@ if __name__ == "__main__":
     expectations = expectations.reshape((len(PolDefs), NStates, NSnapshots), order='F')
     # Output to table format for future advanced plots
     for i in range(NStates):
-        with open("expectation-"+str(i)+".txt", 'w') as f:
+        with open("expectation-"+str(i+1)+".txt", 'w') as f:
             print("time", end='\t', file=f)
             for pol in PolDefs: print(pol.title(), end='\t', file=f)
             print(file=f)
