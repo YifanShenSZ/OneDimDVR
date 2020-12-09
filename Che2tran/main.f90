@@ -1,6 +1,11 @@
 !Calculate transmission and reflection from Chebyshev order domain wave function
 program main
     implicit none
+
+type pint
+    integer, allocatable, dimension(:)::indices
+end type pint
+
     !input
     real*8::mass, dt, left, right
     integer::left_index, right_index
@@ -9,17 +14,21 @@ program main
     real*8::Hmin, Hmax, dq
     real*8, allocatable, dimension(:)::grids
     complex*16, allocatable, dimension(:,:,:)::Chebyshev
-    !transformation to time domain
+    !transformation to time domain and transmission & reflection
     real*8::R
     complex*16::scalor
-    complex*16, allocatable, dimension(:,:)::Chebyshev_left, Chebyshev_right, pCheStar_left, pCheStar_right
-    complex*16, allocatable, dimension(:)::wfn_left, wfn_right, pwfnstar_left, pwfnstar_right
-    !transmission and reflection
+    type(pint), allocatable, dimension(:)::order_left, order_right ! order > 0 and wfn norm > 0 orders
     complex*16, allocatable, dimension(:,:)::p ! DVR momentum
     complex*16, allocatable, dimension(:)::p_left, p_right ! rows in p
+    complex*16, allocatable, dimension(:,:)::Chebyshev_left, Chebyshev_right, pCheStar_left, pCheStar_right
     real*8, allocatable, dimension(:)::transmission, reflection
+    !parallelization
+    integer, external::omp_get_max_threads
+    integer::NThreads, thread
+    complex*16, allocatable, dimension(:,:)::wfn_left, wfn_right, pwfnstar_left, pwfnstar_right
+    real*8, allocatable, dimension(:,:)::tran_para, refl_para
     !work variable
-    integer::i, j
+    integer::i, j, k, count, timer
     real*8::time, dcoeff, tol
     complex*16::zcoeff
 
@@ -86,6 +95,35 @@ program main
     close(99)
 
     !Initialize time domain convertion and transmission & reflection
+    allocate(order_left (NStates))
+    allocate(order_right(NStates))
+    do j = 1, NStates
+        !Only wfn norm > 1d-8 orders are taken into account
+        count = 0
+        do i = 1, order
+            if (abs(Chebyshev(left_index,j,i)) > 1d-8) count = count + 1
+        end do
+        allocate(order_left(j)%indices(count))
+        count = 0
+        do i = 1, order
+            if (abs(Chebyshev(left_index,j,i)) > 1d-8) then
+                count = count + 1
+                order_left(j)%indices(count) = i
+            end if
+        end do
+        count = 0
+        do i = 1, order
+            if (abs(Chebyshev(right_index,j,i)) > 1d-8) count = count + 1
+        end do
+        allocate(order_right(j)%indices(count))
+        count = 0
+        do i = 1, order
+            if (abs(Chebyshev(right_index,j,i)) > 1d-8) then
+                count = count + 1
+                order_right(j)%indices(count) = i
+            end if
+        end do
+    end do
     allocate(p(NGrids, NGrids))
     call compute_momentum(dq, p, NGrids)
     allocate(p_left(NGrids))
@@ -104,42 +142,76 @@ program main
         pCheStar_left (j,i) = dot_product(Chebyshev(:,j,i), p_left )
         pCheStar_right(j,i) = dot_product(Chebyshev(:,j,i), p_right)
     end forall
-    allocate(wfn_left (NStates))
-    allocate(wfn_right(NStates))
-    allocate(pwfnstar_left (NStates))
-    allocate(pwfnstar_right(NStates))
     allocate(transmission(NStates))
     transmission = 0d0
     allocate(reflection  (NStates))
     reflection   = 0d0
 
+    !Initialize parallelization
+    NThreads = omp_get_max_threads()
+    allocate(wfn_left (NStates, NThreads))
+    allocate(wfn_right(NStates, NThreads))
+    allocate(pwfnstar_left (NStates, NThreads))
+    allocate(pwfnstar_right(NStates, NThreads))
+    allocate(tran_para(NStates, NThreads))
+    allocate(refl_para(NStates, NThreads))
+
     !Calculate transmission and reflection
-    time = 0d0
-    tol  = 0.9999 / dt * mass
+    timer = 0
+    tol   = 0.9999 / dt * mass
     do
-        !Transform to time domain
-        time = time + dt
-        scalor = exp((0d0,-1d0) * (Hmax + Hmin) * time / 2d0)
-        R = (Hmax - Hmin) * time / 2d0
-        dcoeff = bessel_j0(R)
-        wfn_left  = dcoeff * Chebyshev_left (:,0)
-        wfn_right = dcoeff * Chebyshev_right(:,0)
-        pwfnstar_left  = dcoeff * pCheStar_left (:,0)
-        pwfnstar_right = dcoeff * pCheStar_right(:,0)
-        do i = 1, order
-            dcoeff = 2d0 * bessel_jn(i, R)
-            if (abs(dcoeff) > 1d-8) then
-                zcoeff = (0d0,1d0)**i * dcoeff
-                wfn_left  = wfn_left  + zcoeff * Chebyshev_left (:,i)
-                wfn_right = wfn_right + zcoeff * Chebyshev_right(:,i)
-                zcoeff = conjg(zcoeff)
-                pwfnstar_left  = pwfnstar_left  + zcoeff * pCheStar_left (:,i)
-                pwfnstar_right = pwfnstar_right + zcoeff * pCheStar_right(:,i)
-            end if
+        tran_para = 0d0
+        refl_para = 0d0
+        !$OMP PARALLEL DO PRIVATE(thread, time, count, scalor, R, dcoeff, j, i, k, zcoeff)
+        do thread = 1, NThreads
+            !Take 1000 time steps per thread
+            time = (timer * NThreads * 1000 + (thread - 1) * 1000) * dt
+            do count = 1, 1000
+                !Transform to time domain and calculate transmission & reflection
+                time = time + dt
+                scalor = exp((0d0,-1d0) * (Hmax + Hmin) * time / 2d0)
+                R = (Hmax - Hmin) * time / 2d0
+                dcoeff = bessel_j0(R)
+                wfn_left (:,thread) = dcoeff * Chebyshev_left (:,0)
+                wfn_right(:,thread) = dcoeff * Chebyshev_right(:,0)
+                pwfnstar_left (:,thread) = dcoeff * pCheStar_left (:,0)
+                pwfnstar_right(:,thread) = dcoeff * pCheStar_right(:,0)
+                do j = 1, NStates
+                    do i = 1, size(order_left(j)%indices)
+                        k = order_left(j)%indices(i)
+                        dcoeff = 2d0 * bessel_jn(k, R)
+                        !Only |coeff| > 1d-8 terms are taken into account
+                        if (abs(dcoeff) > 1d-8) then
+                            zcoeff = (0d0,1d0)**k * dcoeff
+                            wfn_left(j,thread) = wfn_left(j,thread) + zcoeff * Chebyshev_left(j,k)
+                            zcoeff = conjg(zcoeff)
+                            pwfnstar_left(j,thread) = pwfnstar_left(j,thread) + zcoeff * pCheStar_left(j,k)
+                        end if
+                    end do
+                    do i = 1, size(order_right(j)%indices)
+                        k = order_right(j)%indices(i)
+                        dcoeff = 2d0 * bessel_jn(k, R)
+                        !Only |coeff| > 1d-8 terms are taken into account
+                        if (abs(dcoeff) > 1d-8) then
+                            zcoeff = (0d0,1d0)**k * dcoeff
+                            wfn_right(j,thread) = wfn_right(j,thread) + zcoeff * Chebyshev_right(j,k)
+                            zcoeff = conjg(zcoeff)
+                            pwfnstar_right(j,thread) = pwfnstar_right(j,thread) + zcoeff * pCheStar_right(j,k)
+                        end if
+                    end do
+                end do
+                !Calculate transmission and reflection
+                tran_para(:,thread) = tran_para(:,thread) - dble(wfn_right(:,thread) * pwfnstar_right(:,thread))
+                refl_para(:,thread) = refl_para(:,thread) + dble(wfn_left (:,thread) * pwfnstar_left (:,thread))
+            end do
         end do
-        !Calculate transmission and reflection
-        transmission = transmission - dble(wfn_right * pwfnstar_right)
-        reflection   = reflection   + dble(wfn_left  * pwfnstar_left )
+        !$OMP END PARALLEL DO
+        transmission = transmission + sum(tran_para, 2)
+        reflection   = reflection   + sum(refl_para, 2)
+        timer = timer + 1
+        write(*,*)"time = ", timer * NThreads * 1000 * dt
+        write(*,*)transmission * dt / mass
+        write(*,*)reflection   * dt / mass
         !Check population
         if (sum(transmission) + sum(reflection) > tol) then
             write(*,*)"All population has been absorbed"

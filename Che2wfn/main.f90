@@ -90,15 +90,13 @@ program main
         do j = 1, NThreads
             do k = chunk_start(j), chunk_stop(j)
                 coeff = 2d0 * bessel_jn(k, R)
-                if (abs(coeff) > 1d-6) &
+                !Only |coeff| > 1d-8 terms are taken into account
+                if (abs(coeff) > 1d-8) &
                 wfn_parallel(:,:,j) = wfn_parallel(:,:,j) + (0d0,1d0)**k * coeff * Chebyshev(:,:,k)
             end do
         end do
         !$OMP END PARALLEL DO
-        wfn = bessel_j0(R) * Chebyshev(:,:,0)
-        do j = 1, NThreads
-            wfn = wfn + wfn_parallel(:,:,j)
-        end do
+        wfn = bessel_j0(R) * Chebyshev(:,:,0) + sum(wfn_parallel, 3)
         write(99)wfn
     end do
     close(99)

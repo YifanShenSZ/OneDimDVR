@@ -22,7 +22,7 @@ Analyzers:
 * `Che2wfn.exe` converts Chebyshev order domain wave function to usual time domain
 * `Che2tran.exe` calculates transmission and reflection from Chebyshev order domain wave function
 * `density.exe` converts wave function to density
-* `transmission.exe` calculates transmission and reflection from wave function. The wave function needs to be saved every a small output interval, as small as time step, since this routine runs a time integration (so the wave function can be disk-consuming!)
+* `transmission.exe` calculates transmission and reflection from wave function
 * `animate-density.py` animates density propagation
 * `Wigner.exe` converts wave function to Wigner distribution
 * `animate-Wigner.py` animates Wigner distribution propagation
