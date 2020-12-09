@@ -3,7 +3,7 @@ wavefunction
 Mass:
     2000
 Total propagation time:
-    1000000
+    10000
 Time step:
     0.1
 Output interval:

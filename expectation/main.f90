@@ -85,7 +85,6 @@ program main
     allocate(Wigner(NGrids, NMomenta))
 
     !Calculate expectations
-    write(*,*)"Calculating expectations..."
     allocate(expectations(NPolynomials, NStates, NSnapshots))
     do j = 1, NStates
         write(line,*)j
@@ -105,9 +104,6 @@ program main
     open(unit=99, file="expectation.out", form="unformatted", status="replace")
         write(99)expectations
     close(99)
-
-    write(*,*)
-    write(*,*)"Mission success"
 
 contains
 subroutine Wigner2expectation(grids, momenta, Wigner, PolDefs, expectations, NGrids, NMomenta, NPolynomials)

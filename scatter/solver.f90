@@ -175,9 +175,8 @@ subroutine propagate_wavefunction()
     end subroutine compute_population
 end subroutine propagate_wavefunction
 
-!The difference to subroutine propagate_wavefunction
-!is this subroutine cares only about the absorption at the boundary,
-!i.e. transmission and reflection rather than saving the wavefunction
+!The difference to subroutine propagate_wavefunction is
+!this subroutine cares only about transmission and reflection rather than saving the wavefunction
 subroutine transmit_reflect()
     !grid points
     integer::NSnapshots, NUsualGrids, NAbsorbGrids, NGrids
@@ -190,10 +189,9 @@ subroutine transmit_reflect()
     complex*16, allocatable, dimension(:, :)::wfn
     !transmission and reflection
     integer::left_index, right_index
-    real*8, dimension(NStates)::transmission, reflection
     complex*16, allocatable, dimension(:,:)::p ! DVR momentum
-    complex*16, allocatable, dimension(:)::p_left, p_right ! a row in p
-    !complex*16, allocatable, dimension(:)::pwfn, pwfnstar
+    complex*16, allocatable, dimension(:)::p_left, p_right ! rows in p
+    real*8, dimension(NStates)::transmission, reflection
     !work variable
     integer::i, j
     !Discretize time
@@ -229,16 +227,14 @@ subroutine transmit_reflect()
     !Initialize transmission and reflection
     left_index = NAbsorbGrids + 1
     right_index = NAbsorbGrids + NUsualGrids
-    transmission = 0d0
-    reflection   = 0d0
     allocate(p(NGrids, NGrids))
     call compute_momentum(dq, p, NGrids)
-    !allocate(pwfn    (NGrids))
-    !allocate(pwfnstar(NGrids))
     allocate(p_left(NGrids))
     p_left = p(left_index, :)
     allocate(p_right(NGrids))
     p_right = p(right_index, :)
+    transmission = 0d0
+    reflection   = 0d0
     !Set initial condition
     allocate(wfn(NGrids, NStates))
     do i = 1, NGrids
@@ -247,23 +243,11 @@ subroutine transmit_reflect()
     !Propagate wave function
     do i = 1, NSnapshots
         call RK4(T, V, wfn, wfn, dt, NGrids, NStates)
-        !Calculate absorption
-        do j = 1, NStates
-            !call zhemv('L', NGrids, (1d0,0d0), p, NGrids,       wfn(:,j) , 1, (0d0,0d0), pwfn    , 1)
-            !call zhemv('L', NGrids, (1d0,0d0), p, NGrids, conjg(wfn(:,j)), 1, (0d0,0d0), pwfnstar, 1)
-            !transmission(j) = transmission(j) &
-            !                - dble(wfn(NAbsorbGrids + NUsualGrids, j) * pwfnstar(NAbsorbGrids + NUsualGrids) &
-            !                - conjg(wfn(NAbsorbGrids + NUsualGrids, j)) * pwfn(NAbsorbGrids + NUsualGrids))
-            !reflection(j) = reflection(j) &
-            !                + dble(wfn(NAbsorbGrids + 1, j) * pwfnstar(NAbsorbGrids + 1) &
-            !                - conjg(wfn(NAbsorbGrids + 1, j)) * pwfn(NAbsorbGrids + 1))
-            transmission(j) = transmission(j) &
-                            - dble(wfn(right_index, j) * dot_product(p_right, conjg(wfn(:,j))) &
-                            - conjg(wfn(right_index, j)) * dot_product(p_right, wfn(:,j)))
-            reflection(j) = reflection(j) &
-                          + dble(wfn(left_index, j) * dot_product(p_left, conjg(wfn(:,j))) &
-                          - conjg(wfn(left_index, j)) * dot_product(p_left, wfn(:,j)))
-        end do
+        !Calculate transmission and reflection
+        forall (j = 1 : NStates)
+            transmission(j) = transmission(j) - dble(wfn(right_index, j) * dot_product(wfn(:,j), p_right))
+            reflection  (j) = reflection  (j) + dble(wfn(left_index , j) * dot_product(wfn(:,j), p_left ))
+        end forall
         !Check population
         call compute_population(population) 
         if (population > 1.0001) then
@@ -282,8 +266,8 @@ subroutine transmit_reflect()
         write(*,*)population, " population remains"
         write(*,*)"The scattering process has not reached its end yet"
     end if
-    transmission = transmission * dt / 2d0 / mass
-    reflection   = reflection   * dt / 2d0 / mass
+    transmission = transmission * dt / mass
+    reflection   = reflection   * dt / mass
     population = sum(transmission) + sum(reflection)
     if (population < 0.9999) then
         write(*,*)"Warning: sum of transmission and reflection = ", population
@@ -309,8 +293,6 @@ subroutine transmit_reflect()
     deallocate(V)
     deallocate(wfn)
     deallocate(p)
-    !deallocate(pwfn)
-    !deallocate(pwfnstar)
     deallocate(p_left)
     deallocate(p_right)
     contains

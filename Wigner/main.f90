@@ -59,7 +59,6 @@ program main
     end do
 
     !Calculate Wigner distribution
-    write(*,*)"Calculating Wigner distribution..."
     allocate(Wigner(NGrids, NMomenta))
     open(unit=99, file="wfn.out", form="unformatted")
     do j = 1, NStates
@@ -86,9 +85,6 @@ program main
         write(99,*)"Number of momentum grid points:"
         write(99,*)NMomenta
     close(99)
-
-    write(*,*)
-    write(*,*)"Mission success"
 
 contains
 !Wigner(q, p) = WignerTransform[wfn(q)]

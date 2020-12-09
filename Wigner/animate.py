@@ -42,17 +42,20 @@ speed=1.0, show=True, save=True, FileName='3D'):
     xmin = numpy.amin(x); xmax = numpy.amax(x); ax.set_xlim(xmin, xmax)
     ymin = numpy.amin(y); ymax = numpy.amax(y); ax.set_ylim(ymin, ymax)
     zmin = numpy.amin(z); zmax = numpy.amax(z); ax.set_zlim(zmin, zmax)
+    vmax = max(abs(zmin), abs(zmax)); vmin = -vmax
     tol = 0.01 * max(abs(zmax), abs(zmin))
     indice = Pick_Significance(z[:, 0], tol) # Neglect small values
-    xplot = x[indice]; yplot = y[indice]; zplot = z[:, 0][indice]
-    ax.plot_trisurf(xplot, yplot, zplot, cmap=colormap, vmin=zmin, vmax=zmax)
+    if len(indice) > 3:
+        xplot = x[indice]; yplot = y[indice]; zplot = z[:, 0][indice]
+        ax.plot_trisurf(xplot, yplot, zplot, cmap=colormap, vmin=vmin, vmax=vmax)
     def animate(i):
-       ax.clear()
-       ax.set_title(title); ax.set_xlabel(xlabel); ax.set_ylabel(ylabel); ax.set_zlabel(zlabel)
-       ax.set_xlim(xmin, xmax); ax.set_ylim(ymin, ymax); ax.set_zlim(zmin, zmax)
-       indice = Pick_Significance(z[:, i], tol)
-       xplot = x[indice]; yplot = y[indice]; zplot = z[:, i][indice]
-       ax.plot_trisurf(xplot, yplot, zplot, cmap=colormap, vmin=zmin, vmax=zmax)
+        ax.clear()
+        ax.set_title(title); ax.set_xlabel(xlabel); ax.set_ylabel(ylabel); ax.set_zlabel(zlabel)
+        ax.set_xlim(xmin, xmax); ax.set_ylim(ymin, ymax); ax.set_zlim(zmin, zmax)
+        indice = Pick_Significance(z[:, i], tol)
+        if len(indice) > 3:
+            xplot = x[indice]; yplot = y[indice]; zplot = z[:, i][indice]
+            ax.plot_trisurf(xplot, yplot, zplot, cmap=colormap, vmin=vmin, vmax=vmax)
     ani = anm.FuncAnimation(fig, animate, frames=z.shape[1], interval=40.0/speed)
     if(save): ani.save(FileName + ".gif")
     if(show): plt.show()

@@ -10,8 +10,8 @@ program main
     complex*16, allocatable, dimension(:, :)::wfn
     !transmission and reflection
     integer::left_index, right_index
-    complex*16, allocatable, dimension(:,:)::p
-    complex*16, allocatable, dimension(:)::pwfn, pwfnstar
+    complex*16, allocatable, dimension(:,:)::p ! DVR momentum
+    complex*16, allocatable, dimension(:)::p_left, p_right ! rows in p
     real*8, allocatable, dimension(:)::transmission, reflection
     !work variable
     integer::i, j
@@ -74,11 +74,12 @@ program main
     allocate(wfn(NGrids, NStates))
 
     !Calculate transmission and reflection
-    write(*,*)"Calculating transmission and reflection..."
     allocate(p(NGrids, NGrids))
     call compute_momentum(dq, p, NGrids)
-    allocate(pwfn    (NGrids))
-    allocate(pwfnstar(NGrids))
+    allocate(p_left(NGrids))
+    p_left = p(left_index, :)
+    allocate(p_right(NGrids))
+    p_right = p(right_index, :)
     allocate(transmission(NStates))
     allocate(reflection  (NStates))
     transmission = 0d0
@@ -86,20 +87,14 @@ program main
     open(unit=99,  file="wfn.out", form="unformatted")
         do i = 1, NSnapshots
             read(99)wfn
-            do j = 1, NStates
-                call zhemv('L', NGrids, (1d0,0d0), p, NGrids,       wfn(:,j) , 1, (0d0,0d0), pwfn    , 1)
-                call zhemv('L', NGrids, (1d0,0d0), p, NGrids, conjg(wfn(:,j)), 1, (0d0,0d0), pwfnstar, 1)
-                transmission(j) = transmission(j) &
-                                - dble(wfn(right_index, j) * pwfnstar(right_index) &
-                                - conjg(wfn(right_index, j)) * pwfn(right_index))
-                reflection(j) = reflection(j) &
-                                + dble(wfn(left_index, j) * pwfnstar(left_index) &
-                                - conjg(wfn(left_index, j)) * pwfn(left_index))
-            end do
+            forall (j = 1 : NStates)
+                transmission(j) = transmission(j) - dble(wfn(right_index, j) * dot_product(wfn(:,j), p_right))
+                reflection  (j) = reflection  (j) + dble(wfn(left_index , j) * dot_product(wfn(:,j), p_left ))
+            end forall
         end do
     close(99)
-    transmission = transmission * dt / 2d0 / mass
-    reflection   = reflection   * dt / 2d0 / mass
+    transmission = transmission * dt / mass
+    reflection   = reflection   * dt / mass
     population = sum(transmission) + sum(reflection)
     if (population < 0.9999) then
         write(*,*)"Warning: sum of transmission and reflection = ", population
@@ -137,6 +132,9 @@ subroutine compute_momentum(dq, p, NGrids)
         end do
     end do
     p = p * (0d0,-1d0) / dq
+    forall (i = 1 : NGrids, j = 1 : NGrids, i < j)
+        p(i, j) = conjg(p(j, i))
+    end forall
 end subroutine compute_momentum
 
 end program main

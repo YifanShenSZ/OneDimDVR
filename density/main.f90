@@ -25,7 +25,6 @@ program main
     allocate(wfn(NGrids, NStates))
 
     !Calculate density
-    write(*,*)"Calculating density..."
     open(unit=99,  file="wfn.out", form="unformatted")
     do j = 1, NStates
         write(count,*)j
@@ -42,6 +41,4 @@ program main
         close(99+j)
     end do
 
-    write(*,*)
-    write(*,*)"Mission success"
 end program main
