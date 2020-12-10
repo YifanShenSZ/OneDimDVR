@@ -35,6 +35,8 @@ subroutine read_input()
         read(99,*); read(99,*)left
         read(99,*); read(99,*)right
         read(99,*); read(99,*)dq
+        read(99,*); read(99,*)Hmin
+        read(99,*); read(99,*)Hmax
         read(99,*); read(99,*)kmin
     else
         close(99)
@@ -48,6 +50,10 @@ subroutine read_input()
             write(99,*)"Right boundary:"
             write(99,*)
             write(99,*)"Grid spacing:"
+            write(99,*)
+            write(99,*)"Energy lower bound: (set both to 0 to let OneDimDVR estimate it)"
+            write(99,*)
+            write(99,*)"Energy upper bound: (set both to 0 to let OneDimDVR estimate it)"
             write(99,*)
             write(99,*)"Minimum wave number to be absorbed:"
             write(99,*)

@@ -8,5 +8,9 @@ Right boundary:
     20
 Grid spacing:
     0.1
+Energy lower bound: (set both to 0 to let OneDimDVR estimate it)
+    0
+Energy upper bound: (set both to 0 to let OneDimDVR estimate it)
+    0
 Minimum wave number to be absorbed:
     2.5

@@ -63,7 +63,7 @@ subroutine propagate_Chebyshev()
     real*8::population
     complex*16, allocatable, dimension(:,:)::wfnnew, wfn, wfnold
     !Chebyshev scalor
-    real*8::Hmax, Hmin, Tmax, Tmin, Vmax, Vmin, shift
+    real*8::Tmin, Tmax, Vmin, Vmax, shift
     real*8, dimension(NStates)::energy
     real*8, dimension(NStates, NStates)::Hd
     !Work variable
@@ -92,20 +92,29 @@ subroutine propagate_Chebyshev()
     allocate(D(NGrids))
     call compute_damping(grids, D, NGrids)
     !Scale Hamiltonian to [-1, 1]
-    Tmax = 39.47841760435743d0 / dq / dq / 2d0 / mass ! (2pi/dq)^2 / 2m
-    Tmin = Tmax / NGrids / NGrids
-    Hd = V(1,:,:)
-    call My_dsyev('N', Hd, energy, NStates)
-    Vmin = energy(1)
-    Vmax = energy(NStates)
-    do i = 2, NGrids
-        Hd = V(i,:,:)
+    if (Hmin == Hmax) then
+        write(*,*)"Estimate energy bounds by kinetic and potential energy bounds"
+        Tmax = 39.47841760435743d0 / dq / dq / 2d0 / mass ! (2pi/dq)^2 / 2m
+        Tmin = Tmax / NGrids / NGrids
+        write(*,*)"Kinetic energy lower bound = ", Tmin
+        write(*,*)"Kinetic energy upper bound = ", Tmax
+        Hd = V(1,:,:)
         call My_dsyev('N', Hd, energy, NStates)
-        if (energy(1) < Vmin) Vmin = energy(1)
-        if (energy(NStates) > Vmax) Vmax = energy(NStates)
-    end do
-    Hmax = Tmax + Vmax
-    Hmin = Tmin + Vmin
+        Vmin = energy(1)
+        Vmax = energy(NStates)
+        do i = 2, NGrids
+            Hd = V(i,:,:)
+            call My_dsyev('N', Hd, energy, NStates)
+            if (energy(1) < Vmin) Vmin = energy(1)
+            if (energy(NStates) > Vmax) Vmax = energy(NStates)
+        end do
+        write(*,*)"Potential energy lower bound = ", Vmin
+        write(*,*)"Potential energy upper bound = ", Vmax
+        Hmax = Tmax + Vmax
+        Hmin = Tmin + Vmin
+        write(*,*)"Estimated total energy lower bound = ", Hmin
+        write(*,*)"Estimated total energy upper bound = ", Hmax
+    end if
     T = -2d0 / (Hmax - Hmin) * T
     V = -2d0 / (Hmax - Hmin) * V
     shift = (Hmax + Hmin) / (Hmax - Hmin)
