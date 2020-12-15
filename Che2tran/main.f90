@@ -210,8 +210,10 @@ end type pint
         reflection   = reflection   + sum(refl_para, 2)
         timer = timer + 1
         write(*,*)"time = ", timer * NThreads * 1000 * dt
-        write(*,*)transmission * dt / mass
-        write(*,*)reflection   * dt / mass
+        write(99,*)"state    transmission    reflection"
+        do i = 1, NStates
+            write(99,"(I5,4x,f12.8,4x,f12.8)")i, transmission(i) * dt / mass, reflection(i) * dt / mass
+        end do
         !Check population
         if (sum(transmission) + sum(reflection) > tol) then
             write(*,*)"All population has been absorbed"
