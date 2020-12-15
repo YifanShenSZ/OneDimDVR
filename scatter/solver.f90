@@ -1,4 +1,5 @@
 module solver
+    use General
     use LinearAlgebra
     use basic
     use DVR
@@ -259,6 +260,13 @@ subroutine transmit_reflect()
             write(*,*)"All population has been absorbed"
             write(*,*)"Stop propagation at time ", i * dt
             exit
+        end if
+        !Output every 10000 steps
+        if(mod(i, 10000) == 0) then
+            write(*,*)
+            call ShowTime()
+            write(*,*)"time = ", i * dt
+            write(*,*)population, " population remains"
         end if
     end do
     if (i > NSnapshots) then
