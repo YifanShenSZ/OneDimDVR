@@ -12,7 +12,7 @@ if __name__ == "__main__":
     pmean = args.p
     psigma = pmean / 20
     qsigma = 0.5 / psigma
-    qmean = -10 - 5 * qsigma
+    qmean = -5 - 5 * qsigma
     left = qmean - 5 * qsigma
     right = -left
     pmin = pmean - 5 * psigma

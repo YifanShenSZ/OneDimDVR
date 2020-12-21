@@ -6,7 +6,7 @@ program main
     use basic
     use solver
     implicit none
-    character*128::job
+    character*128::job, representation
 
     write(*,'(A)')"OneDimDVR: Numerically solve the time-dependent Schrodinger equation by discrete variable representation method"
     write(*,'(A)')"This is a specialized version for 1 dimensional scatter systems"
@@ -22,7 +22,14 @@ program main
         call propagate_wavefunction()
     case("transmission")
         write(*,*)"Calculating transmission and reflection..."
-        call transmit_reflect()
+        select case(representation)
+        case("diabatic")
+            call transmit_reflect()
+        case("adiabatic")
+            call adiabatic_transmit_reflect()
+        case default
+            stop "Unknown representation"
+        end select
     case default
         stop "Unknown job type"
     end select
@@ -36,7 +43,8 @@ subroutine read_input()
     integer::i
     open(unit=99, file="OneDimDVR-scatter.in", status="old", iostat=i)
     if (i == 0) then
-        read(99,*); read(99,*)job; write(*,*)"Job type: "//job
+        read(99,*); read(99,*)job; write(*,*)"Job type: "//trim(adjustl(job))
+        read(99,*); read(99,*)representation; write(*,*)"Will use "//trim(adjustl(representation))//" representation"
         read(99,*); read(99,*)mass
         read(99,*); read(99,*)total_time
         read(99,*); read(99,*)dt
@@ -50,6 +58,8 @@ subroutine read_input()
         close(99)
         open(unit=99, file="OneDimDVR-scatter.in", status="replace")
             write(99,*)"Job type: (wavefunction, transmission)"
+            write(99,*)
+            write(99,*)"Representation: (diabatic, adiabatic)"
             write(99,*)
             write(99,*)"Mass:"
             write(99,*)

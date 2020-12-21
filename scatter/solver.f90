@@ -267,6 +267,10 @@ subroutine transmit_reflect()
             call ShowTime()
             write(*,*)"time = ", i * dt
             write(*,*)population, " population remains"
+            write(*,*)"state    transmission    reflection"
+            do j = 1, NStates
+                write(*,"(I5,4x,f12.8,4x,f12.8)")j, transmission(j) * dt / mass, reflection(j) * dt / mass
+            end do
         end if
     end do
     if (i > NSnapshots) then
@@ -316,5 +320,167 @@ subroutine transmit_reflect()
         population = population * dq
     end subroutine compute_population
 end subroutine transmit_reflect
+
+!The difference to subroutine transmit_reflect is
+!this subroutine computes transmission and reflection in adiabatic representation
+subroutine adiabatic_transmit_reflect()
+    !grid points
+    integer::NSnapshots, NUsualGrids, NAbsorbGrids, NGrids
+    real*8, allocatable, dimension(:)::grids
+    !DVR Hamiltonian: kinetic energy T, potential energy V
+    complex*16, allocatable, dimension(:,:)::T
+    complex*16, allocatable, dimension(:,:,:)::V
+    !DVR wave function
+    real*8::population
+    complex*16, allocatable, dimension(:, :)::wfn
+    !adiabatic representation
+    complex*16, allocatable, dimension(:, :)::wfn_a ! adiabatic wave function
+    complex*16, allocatable, dimension(:, :, :)::UT ! diabatz to adiabatz unitary transformation matrix
+    real*8, dimension(NStates)::energy
+    real*8, dimension(NStates, NStates)::Hd
+    !transmission and reflection
+    integer::left_index, right_index
+    complex*16, allocatable, dimension(:,:)::p ! DVR momentum
+    complex*16, allocatable, dimension(:)::p_left, p_right ! rows in p
+    real*8, dimension(NStates)::transmission, reflection
+    !work variable
+    integer::i, j
+    !Discretize time
+    NSnapshots = floor(total_time / dt) + 1
+    !Discretize space
+    if (auto_spacing) then
+        !D. E. Manolopoulos 2002 J. Chem. Phys. suggests at least 5 grid points every 2 pi / kmax
+        dq = min(6.283185307179586d0 / kmax / 5d0, dq)
+        write(*,*)"Consider absorbance condition and user input, grid spacing is set to ", dq
+    end if
+    NUsualGrids = floor((right - left) / dq) + 1
+    dq = (right - left) / (NUsualGrids - 1)
+    !This -1 prevents the grids from touching the boundary
+    !since absorbing potential diverges there
+    NAbsorbGrids = floor(6.283185307179586d0 / kmin / dq) - 1
+    NGrids = NUsualGrids + 2 * NAbsorbGrids
+    allocate(grids(NGrids))
+    grids(NAbsorbGrids) = left - dq
+    grids(NAbsorbGrids + NUsualGrids + 1) = right + dq
+    do i = 1, NAbsorbGrids - 1
+        grids(NAbsorbGrids - i) = grids(NAbsorbGrids - i + 1) - dq
+        grids(NAbsorbGrids + NUsualGrids + i + 1) = grids(NAbsorbGrids + NUsualGrids + i) + dq
+    end do
+    grids(NAbsorbGrids + 1) = left
+    do i = 2, NUsualGrids
+        grids(NAbsorbGrids + i) = grids(NAbsorbGrids + i - 1) + dq
+    end do
+    !Build DVR Hamiltonian
+    allocate(T(NGrids, NGrids))
+    call compute_kinetic(dq, T, NGrids)
+    allocate(V(NGrids, NStates, NStates))
+    call compute_potential(grids, V, NGrids, NStates)
+    !Initialize diabatic to adiabatic transformation
+    allocate(wfn_a(NGrids, NStates))
+    allocate(UT(NStates, NStates, NGrids))
+    do i = 1, NGrids
+        call compute_Hd(grids(i), Hd)
+        call My_dsyev('V', Hd, energy, NStates)
+        UT(:, :, i) = transpose(Hd)
+    end do
+    !Initialize transmission and reflection
+    left_index = NAbsorbGrids + 1
+    right_index = NAbsorbGrids + NUsualGrids
+    allocate(p(NGrids, NGrids))
+    call compute_momentum(dq, p, NGrids)
+    allocate(p_left(NGrids))
+    p_left = p(left_index, :)
+    allocate(p_right(NGrids))
+    p_right = p(right_index, :)
+    transmission = 0d0
+    reflection   = 0d0
+    !Set initial condition
+    allocate(wfn(NGrids, NStates))
+    do i = 1, NGrids
+        call init_wfn(grids(i), wfn(i, :))
+    end do
+    !Propagate wave function
+    do i = 1, NSnapshots
+        call RK4(T, V, wfn, wfn, dt, NGrids, NStates)
+        !Transform from diabatz to adiabatz
+        forall (j = 1 : NGrids)
+            wfn_a(j, :) = matmul(UT(:, :, j), wfn(j, :))
+        end forall
+        !Calculate transmission and reflection
+        forall (j = 1 : NStates)
+            transmission(j) = transmission(j) - dble(wfn_a(right_index, j) * dot_product(wfn_a(:,j), p_right))
+            reflection  (j) = reflection  (j) + dble(wfn_a(left_index , j) * dot_product(wfn_a(:,j), p_left ))
+        end forall
+        !Check population
+        call compute_population(population) 
+        if (population > 1.0001) then
+            write(*,*)"Error: total population = ", population
+            write(*,*)"Maybe grid spacing and/or time step is not sufficiently small"
+            write(*,*)"Stop propagation at time ", i * dt
+            exit
+        else if (population < 0.0001) then
+            write(*,*)"All population has been absorbed"
+            write(*,*)"Stop propagation at time ", i * dt
+            exit
+        end if
+        !Output every 10000 steps
+        if(mod(i, 10000) == 0) then
+            write(*,*)
+            call ShowTime()
+            write(*,*)"time = ", i * dt
+            write(*,*)population, " population remains"
+            write(*,*)"state    transmission    reflection"
+            do j = 1, NStates
+                write(*,"(I5,4x,f12.8,4x,f12.8)")j, transmission(j) * dt / mass, reflection(j) * dt / mass
+            end do
+        end if
+    end do
+    if (i > NSnapshots) then
+        write(*,*)"Warning: not all population was absorbed within total propagation time"
+        write(*,*)population, " population remains"
+        write(*,*)"The scattering process has not reached its end yet"
+    end if
+    transmission = transmission * dt / mass
+    reflection   = reflection   * dt / mass
+    population = sum(transmission) + sum(reflection)
+    if (population < 0.9999) then
+        write(*,*)"Warning: sum of transmission and reflection = ", population
+        if (i <= NSnapshots) then
+            write(*,*)"Maybe grid spacing and/or time step is not sufficiently small"
+        else
+            write(*,*)"Probably because not all population was absorbed"
+        end if
+    else if (population > 1.0001) then
+        write(*,*)"Warning: sum of transmission and reflection = ", population
+        write(*,*)"Maybe grid spacing and/or time step is not sufficiently small"
+    end if
+    !Output
+    open(unit=99, file="transmission.txt", status="replace")
+        write(99,*)"state"//char(9)//"transmission"//char(9)//"reflection"
+        do i = 1, NStates
+            write(99,*)i, char(9), transmission(i), char(9), reflection(i)
+        end do
+    close(99)
+    !Clean up
+    deallocate(grids)
+    deallocate(T)
+    deallocate(V)
+    deallocate(wfn)
+    deallocate(p)
+    deallocate(p_left)
+    deallocate(p_right)
+    contains
+    subroutine compute_population(population)
+        real*8, intent(out)::population
+        integer::i
+        population = 0d0
+        do i = 1, NStates
+            population = population + dot_product( &
+                         wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i), &
+                         wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i))
+        end do
+        population = population * dq
+    end subroutine compute_population
+end subroutine adiabatic_transmit_reflect
 
 end module solver

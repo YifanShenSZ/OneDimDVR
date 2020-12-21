@@ -1,5 +1,7 @@
 Job type: (wavefunction, transmission)
 wavefunction
+Representation: (diabatic, adiabatic)
+adiabatic
 Mass:
     2000
 Total propagation time:
