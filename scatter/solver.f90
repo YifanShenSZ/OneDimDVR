@@ -177,6 +177,153 @@ subroutine propagate_wavefunction()
 end subroutine propagate_wavefunction
 
 !The difference to subroutine propagate_wavefunction is
+!this subroutine propagates wavefunction in adiabatic representation
+subroutine adiabatic_propagate_wavefunction()
+    !Grid points
+    integer::OutputStep, NSnapshots, NUsualGrids, NAbsorbGrids, NGrids
+    real*8, allocatable, dimension(:)::snapshots, grids
+    !DVR Hamiltonian: kinetic energy T, potential energy V
+    complex*16, allocatable, dimension(:,:)::T
+    complex*16, allocatable, dimension(:,:,:)::V
+    !DVR wave function
+    real*8::population
+    complex*16, allocatable, dimension(:,:)::wfn
+    !adiabatic representation
+    complex*16, allocatable, dimension(:, :)::wfn_a ! adiabatic wave function
+    complex*16, allocatable, dimension(:, :, :)::UT ! diabatz to adiabatz unitary transformation matrix
+    real*8, dimension(NStates)::energy
+    real*8, dimension(NStates, NStates)::Hd
+    !Work variable
+    logical::early_stop
+    integer::i, j
+    !Discretize time
+    OutputStep = floor(output_interval / dt)
+    dt = output_interval / OutputStep
+    NSnapshots = floor(total_time / output_interval) + 1
+    !Discretize space
+    if (auto_spacing) then
+        !D. E. Manolopoulos 2002 J. Chem. Phys. suggests at least 5 grid points every 2 pi / kmax
+        dq = min(6.283185307179586d0 / kmax / 5d0, dq)
+        write(*,*)"Consider absorbance condition and user input, grid spacing is set to ", dq
+    end if
+    NUsualGrids = floor((right - left) / dq) + 1
+    dq = (right - left) / (NUsualGrids - 1)
+    !This -1 prevents the grids from touching the boundary
+    !since absorbing potential diverges there
+    NAbsorbGrids = floor(6.283185307179586d0 / kmin / dq) - 1
+    NGrids = NUsualGrids + 2 * NAbsorbGrids
+    allocate(grids(NGrids))
+    grids(NAbsorbGrids) = left - dq
+    grids(NAbsorbGrids + NUsualGrids + 1) = right + dq
+    do i = 1, NAbsorbGrids - 1
+        grids(NAbsorbGrids - i) = grids(NAbsorbGrids - i + 1) - dq
+        grids(NAbsorbGrids + NUsualGrids + i + 1) = grids(NAbsorbGrids + NUsualGrids + i) + dq
+    end do
+    grids(NAbsorbGrids + 1) = left
+    do i = 2, NUsualGrids
+        grids(NAbsorbGrids + i) = grids(NAbsorbGrids + i - 1) + dq
+    end do
+    !Build DVR Hamiltonian
+    allocate(T(NGrids, NGrids))
+    call compute_kinetic(dq, T, NGrids)
+    allocate(V(NGrids, NStates, NStates))
+    call compute_potential(grids, V, NGrids, NStates)
+    !Initialize diabatic to adiabatic transformation
+    allocate(wfn_a(NGrids, NStates))
+    allocate(UT(NStates, NStates, NGrids))
+    do i = 1, NGrids
+        call compute_Hd(grids(i), Hd)
+        call My_dsyev('V', Hd, energy, NStates)
+        UT(:, :, i) = transpose(Hd)
+    end do
+    !Propagate wave function
+    open(unit=99, file="wfn.out", form="unformatted", status="replace")
+        !Initial condition
+        allocate(wfn(NGrids, NStates))
+        do i = 1, NGrids
+            call init_wfn(grids(i), wfn(i, :))
+        end do
+        !Transform from diabatz to adiabatz
+        forall (j = 1 : NGrids)
+            wfn_a(j, :) = matmul(UT(:, :, j), wfn(j, :))
+        end forall
+        write(99)wfn_a
+        !Propagate by RK4
+        early_stop = .false.
+        do i = 1, (NSnapshots - 1) * OutputStep
+            call RK4(T, V, wfn, wfn, dt, NGrids, NStates)
+            !Transform from diabatz to adiabatz
+            forall (j = 1 : NGrids)
+                wfn_a(j, :) = matmul(UT(:, :, j), wfn(j, :))
+            end forall
+            !Write trajectory
+            if(mod(i, OutputStep) == 0) then
+                write(99)wfn_a
+            end if
+            !Check population
+            call compute_population(population) 
+            if (population > 1.0001) then
+                write(*,*)"Error: total population = ", population
+                write(*,*)"Maybe grid spacing and/or time step is not sufficiently small"
+                early_stop = .true.
+            else if (population < 0.0001) then
+                write(*,*)"All population has been absorbed"
+                early_stop = .true.
+            end if
+            if (early_stop) then
+                write(*,*)"Stop propagation at time ", i * dt
+                NSnapshots = 1 + i / OutputStep
+                exit
+            end if
+        end do
+        if (.not. early_stop) then
+            write(*,*)"Warning: not all population was absorbed within total propagation time"
+            write(*,*)population, " population remains"
+            write(*,*)"The scattering process has not reached its end yet"
+        end if
+    close(99)
+    !Leave a checkpoint
+    open(unit=99, file="checkpoint.txt", status="replace")
+        write(99,*)"Number of electronic states:"
+        write(99,*)NStates
+        write(99,*)"Number of time snapshots:"
+        write(99,*)NSnapshots
+        write(99,*)"Number of grid points:"
+        write(99,*)NGrids
+    close(99)
+    !Output the grids used in calculation
+    allocate(snapshots(NSnapshots))
+    snapshots(1) = 0d0
+    do i = 2, NSnapshots
+        snapshots(i) = snapshots(i - 1) + output_interval
+    end do
+    open(unit=99, file="snapshots.out", form="unformatted", status="replace")
+        write(99)snapshots
+    close(99)
+    open(unit=99, file="grids.out", form="unformatted", status="replace")
+        write(99)grids
+    close(99)
+    !Clean up
+    deallocate(snapshots)
+    deallocate(grids)
+    deallocate(T)
+    deallocate(V)
+    deallocate(wfn)
+    contains
+    subroutine compute_population(population)
+        real*8, intent(out)::population
+        integer::i
+        population = 0d0
+        do i = 1, NStates
+            population = population + dot_product( &
+                         wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i), &
+                         wfn(NAbsorbGrids + 1 : NAbsorbGrids + NUsualGrids, i))
+        end do
+        population = population * dq
+    end subroutine compute_population
+end subroutine adiabatic_propagate_wavefunction
+
+!The difference to subroutine propagate_wavefunction is
 !this subroutine cares only about transmission and reflection rather than saving the wavefunction
 subroutine transmit_reflect()
     !grid points

@@ -22,6 +22,7 @@ Analyzers:
 * `Che2wfn.exe` converts Chebyshev order domain wave function to usual time domain
 * `Che2tran.exe` calculates transmission and reflection from Chebyshev order domain wave function
 * `density.exe` converts wave function to density
+* `population.exe` calculates time dependence of population of each state from wave function
 * `transmission.exe` calculates transmission and reflection from wave function
 * `animate-density.py` animates density propagation
 * `Wigner.exe` converts wave function to Wigner distribution

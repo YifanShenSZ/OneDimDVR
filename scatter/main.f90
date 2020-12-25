@@ -18,14 +18,25 @@ program main
 
     select case(job)
     case ("wavefunction")
-        write(*,*)"Propagating wave function..."
-        call propagate_wavefunction()
-    case("transmission")
-        write(*,*)"Calculating transmission and reflection..."
+        write(*,*)"Propagating wave function"
         select case(representation)
         case("diabatic")
+            write(*,*)"in diabatic representation"
+            call propagate_wavefunction()
+        case("adiabatic")
+            write(*,*)"in adiabatic representation"
+            call adiabatic_propagate_wavefunction()
+        case default
+            stop "Unknown representation"
+        end select
+    case("transmission")
+        write(*,*)"Calculating transmission and reflection"
+        select case(representation)
+        case("diabatic")
+            write(*,*)"in diabatic representation"
             call transmit_reflect()
         case("adiabatic")
+            write(*,*)"in adiabatic representation"
             call adiabatic_transmit_reflect()
         case default
             stop "Unknown representation"
@@ -43,8 +54,8 @@ subroutine read_input()
     integer::i
     open(unit=99, file="OneDimDVR-scatter.in", status="old", iostat=i)
     if (i == 0) then
-        read(99,*); read(99,*)job; write(*,*)"Job type: "//trim(adjustl(job))
-        read(99,*); read(99,*)representation; write(*,*)"Will use "//trim(adjustl(representation))//" representation"
+        read(99,*); read(99,*)job
+        read(99,*); read(99,*)representation
         read(99,*); read(99,*)mass
         read(99,*); read(99,*)total_time
         read(99,*); read(99,*)dt

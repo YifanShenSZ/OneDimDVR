@@ -25,7 +25,7 @@ program main
     allocate(wfn(NGrids, NStates))
 
     !Calculate density
-    open(unit=99,  file="wfn.out", form="unformatted")
+    open(unit=99, file="wfn.out", form="unformatted")
     do j = 1, NStates
         write(count,*)j
         open(unit=99+j, file="density"//trim(adjustl(count))//".out", form="unformatted", status="replace")
